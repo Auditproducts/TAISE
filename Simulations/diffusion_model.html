@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Diffusion Model — 3D Visualiser</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@300;400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#06080f;
+  --surface:#0d1020;
+  --card:#101525;
+  --border:rgba(120,160,255,0.08);
+  --border2:rgba(120,160,255,0.16);
+  --text:#dde4f5;
+  --muted:#5a6480;
+  --fwd:#6ab0f5;   /* forward noise — blue */
+  --rev:#c97df5;   /* reverse denoise — violet */
+  --noise:#f5c76a; /* noise — amber */
+  --clean:#6af5b0; /* clean — teal */
+  --mono:'Syne',sans-serif;
+  --serif:'Instrument Serif',Georgia,serif;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--mono);font-size:13px;line-height:1.6}
+
+/* layout */
+.page{display:grid;grid-template-rows:auto 1fr auto;min-height:100vh}
+header{
+  padding:24px 40px 18px;
+  border-bottom:0.5px solid var(--border);
+  display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:12px
+}
+header h1{font-family:var(--serif);font-weight:400;font-size:28px;letter-spacing:-0.3px;color:var(--text)}
+header h1 em{font-style:italic;color:var(--rev)}
+.header-sub{font-size:10px;color:var(--muted);margin-top:3px;letter-spacing:0.08em;text-transform:uppercase}
+.eq{font-family:var(--mono);font-size:11px;color:var(--fwd);opacity:.7}
+
+.main{display:grid;grid-template-columns:1fr 290px;overflow:hidden}
+
+/* canvas */
+#canvas-wrap{position:relative;overflow:hidden;background:var(--bg);border-right:0.5px solid var(--border)}
+#canvas3d{display:block;width:100%;height:100%;min-height:520px;cursor:grab}
+#canvas3d:active{cursor:grabbing}
+
+/* overlays */
+.overlay{position:absolute;top:0;left:0;right:0;bottom:0;pointer-events:none}
+.badge{
+  position:absolute;
+  background:rgba(6,8,15,0.88);border:0.5px solid var(--border2);
+  border-radius:8px;padding:10px 14px;backdrop-filter:blur(8px)
+}
+.badge .lbl{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.12em;margin-bottom:3px}
+.badge .val{font-size:19px;font-weight:500;font-variant-numeric:tabular-nums}
+#badge-t{top:20px;left:20px}
+#badge-phase{top:20px;left:145px}
+#badge-noise{top:20px;left:275px}
+
+.phase-bar{
+  position:absolute;bottom:16px;left:50%;transform:translateX(-50%);
+  display:flex;align-items:center;gap:6px;
+  background:rgba(6,8,15,0.88);border:0.5px solid var(--border2);
+  border-radius:20px;padding:6px 16px;backdrop-filter:blur(8px)
+}
+.phase-pip{width:8px;height:8px;border-radius:50%;flex-shrink:0;transition:all .3s}
+.phase-label{font-size:10px;letter-spacing:.06em}
+
+/* progress track */
+.progress-wrap{position:absolute;bottom:56px;left:40px;right:40px;height:3px;background:rgba(255,255,255,0.06);border-radius:2px}
+#progress-bar{height:100%;border-radius:2px;background:var(--fwd);width:0%;transition:width .12s,background .4s}
+
+.hint{position:absolute;bottom:18px;right:20px;font-size:10px;color:var(--muted);letter-spacing:.05em;pointer-events:none}
+
+/* sidebar */
+.sidebar{padding:22px 18px;display:flex;flex-direction:column;gap:22px;overflow-y:auto;background:var(--surface)}
+.sec-title{font-size:9px;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);margin-bottom:10px}
+
+/* mode tabs */
+.mode-tabs{display:flex;flex-direction:column;gap:5px}
+.mode-tab{
+  padding:9px 12px;border-radius:7px;border:0.5px solid var(--border);
+  background:transparent;color:var(--muted);font-family:var(--mono);font-size:11.5px;
+  cursor:pointer;text-align:left;transition:all .15s;display:flex;align-items:center;gap:10px
+}
+.mode-tab .pip{width:7px;height:7px;border-radius:50%;flex-shrink:0;transition:background .15s}
+.mode-tab:hover{border-color:var(--border2);color:var(--text)}
+.mode-tab.active{border-color:var(--rev);color:var(--text);background:rgba(201,125,245,0.06)}
+.mode-tab.active .pip{background:var(--rev)}
+.mode-desc{font-size:10px;color:var(--muted);margin-top:9px;line-height:1.65}
+
+/* sliders */
+.sl-row{display:flex;flex-direction:column;gap:7px}
+.sl-head{display:flex;justify-content:space-between;align-items:center}
+.sl-head span{color:var(--muted);font-size:11px}
+.sl-val{color:var(--text);font-size:12px;font-weight:500;min-width:36px;text-align:right}
+input[type=range]{-webkit-appearance:none;width:100%;height:3px;background:var(--border2);border-radius:2px;outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--rev);cursor:pointer;border:2px solid var(--bg)}
+input[type=range]:focus::-webkit-slider-thumb{box-shadow:0 0 0 3px rgba(201,125,245,.25)}
+
+/* buttons */
+.btn-row{display:flex;gap:7px;margin-top:12px}
+.btn{
+  flex:1;padding:9px 0;border-radius:7px;font-family:var(--mono);font-size:12px;
+  cursor:pointer;border:0.5px solid var(--border2);background:transparent;color:var(--text);
+  transition:all .12s;font-weight:500
+}
+.btn:hover{background:rgba(255,255,255,0.04)}
+.btn:active{transform:scale(.97)}
+.btn.primary{background:var(--rev);color:#06080f;border-color:var(--rev)}
+.btn.primary:hover{background:#d992ff;border-color:#d992ff}
+
+/* stats */
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.stat{background:rgba(255,255,255,0.025);border:0.5px solid var(--border);border-radius:7px;padding:10px}
+.stat .sl{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em}
+.stat .sv{font-size:14px;font-weight:500;color:var(--text);margin-top:3px;font-variant-numeric:tabular-nums}
+.sv.fwd{color:var(--fwd)}.sv.rev{color:var(--rev)}.sv.noise{color:var(--noise)}.sv.clean{color:var(--clean)}
+
+/* info cards */
+.icard{background:rgba(255,255,255,0.025);border:0.5px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:7px}
+.icard h4{font-size:11px;font-weight:500;color:var(--text);margin-bottom:5px}
+.icard p{font-size:10.5px;color:var(--muted);line-height:1.65}
+.icard code{font-family:var(--mono);font-size:10px}
+.fwd-c{color:var(--fwd)}.rev-c{color:var(--rev)}.noise-c{color:var(--noise)}
+
+footer{
+  padding:11px 40px;border-top:0.5px solid var(--border);
+  font-size:10px;color:var(--muted);
+  display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px
+}
+
+@media(max-width:720px){
+  .main{grid-template-columns:1fr;grid-template-rows:1fr auto}
+  #canvas-wrap{border-right:none;border-bottom:0.5px solid var(--border)}
+  header,footer{padding:16px 18px}
+  .sidebar{padding:16px;gap:16px}
+}
+</style>
+</head>
+<body>
+<div class="page">
+<header>
+  <div>
+    <h1>Diffusion <em>Model</em></h1>
+    <div class="header-sub">3D Interactive Visualiser · Forward & Reverse Process</div>
+  </div>
+  <div class="eq">q(xₜ|xₜ₋₁) = 𝒩(xₜ; √(1−β)xₜ₋₁, βI)</div>
+</header>
+
+<div class="main">
+  <div id="canvas-wrap">
+    <canvas id="canvas3d"></canvas>
+    <div class="overlay">
+      <div class="badge" id="badge-t">
+        <div class="lbl">Timestep t</div>
+        <div class="val" id="val-t" style="color:var(--fwd)">0</div>
+      </div>
+      <div class="badge" id="badge-phase">
+        <div class="lbl">Phase</div>
+        <div class="val" id="val-phase" style="font-size:13px;padding-top:3px;color:var(--rev)">Forward</div>
+      </div>
+      <div class="badge" id="badge-noise">
+        <div class="lbl">Noise σ</div>
+        <div class="val" id="val-noise" style="color:var(--noise)">0.00</div>
+      </div>
+      <div class="progress-wrap"><div id="progress-bar"></div></div>
+      <div class="phase-bar">
+        <div class="phase-pip" id="pip-fwd" style="background:var(--fwd)"></div>
+        <div class="phase-label" id="lbl-process" style="color:var(--fwd)">Adding noise</div>
+      </div>
+      <div class="hint">drag · scroll</div>
+    </div>
+  </div>
+
+  <aside class="sidebar">
+    <div>
+      <div class="sec-title">Visualisation Mode</div>
+      <div class="mode-tabs">
+        <button class="mode-tab active" data-mode="sphere">
+          <span class="pip" style="background:var(--rev)"></span>Sphere → Noise → Sphere
+        </button>
+        <button class="mode-tab" data-mode="gaussian">
+          <span class="pip"></span>Gaussian → Noise cloud
+        </button>
+        <button class="mode-tab" data-mode="helix">
+          <span class="pip"></span>Helix → Noise → Helix
+        </button>
+      </div>
+      <div class="mode-desc" id="mode-desc">
+        Particles start arranged on a sphere surface. The forward process gradually corrupts them toward pure Gaussian noise. The reverse process denoises back to the sphere.
+      </div>
+    </div>
+
+    <div>
+      <div class="sec-title">Parameters</div>
+      <div style="display:flex;flex-direction:column;gap:13px">
+        <div class="sl-row">
+          <div class="sl-head"><span>Timesteps T</span><span class="sl-val" id="out-T">200</span></div>
+          <input type="range" id="sl-T" min="50" max="400" value="200" step="10">
+        </div>
+        <div class="sl-row">
+          <div class="sl-head"><span>Noise schedule β</span><span class="sl-val" id="out-beta">linear</span></div>
+          <input type="range" id="sl-beta" min="0" max="2" value="0" step="1">
+        </div>
+        <div class="sl-row">
+          <div class="sl-head"><span>Particles</span><span class="sl-val" id="out-N">800</span></div>
+          <input type="range" id="sl-N" min="200" max="2000" value="800" step="100">
+        </div>
+        <div class="sl-row">
+          <div class="sl-head"><span>Speed</span><span class="sl-val" id="out-spd">1×</span></div>
+          <input type="range" id="sl-spd" min="1" max="8" value="2" step="1">
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn primary" id="btn-run">▶ Run</button>
+        <button class="btn" id="btn-step">Step</button>
+        <button class="btn" id="btn-reset">↺</button>
+      </div>
+    </div>
+
+    <div>
+      <div class="sec-title">Live Stats</div>
+      <div class="stats">
+        <div class="stat"><div class="sl">t / T</div><div class="sv" id="st-t">0 / 200</div></div>
+        <div class="stat"><div class="sl">Phase</div><div class="sv rev" id="st-phase">Fwd</div></div>
+        <div class="stat"><div class="sl">Noise σ</div><div class="sv noise" id="st-noise">0.000</div></div>
+        <div class="stat"><div class="sl">Signal</div><div class="sv clean" id="st-signal">1.000</div></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="sec-title">How it works</div>
+      <div class="icard">
+        <h4><span class="fwd-c">Forward process q</span></h4>
+        <p>Gradually add Gaussian noise over T steps. Each step mixes the signal with <code class="noise-c">β</code> noise until particles become pure noise at t=T.</p>
+      </div>
+      <div class="icard">
+        <h4><span class="rev-c">Reverse process p</span></h4>
+        <p>A neural network learns to <em>predict and remove</em> the noise added at each step — effectively running time backwards from chaos to structure.</p>
+      </div>
+      <div class="icard">
+        <h4>Noise schedule</h4>
+        <p><code>linear</code> adds noise evenly. <code>cosine</code> preserves signal longer early on — empirically better for images. <code>quadratic</code> adds noise aggressively at start.</p>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<footer>
+  <span><span style="color:var(--fwd)">■ Blue</span> = forward (noising) &nbsp;·&nbsp; <span style="color:var(--rev)">■ Violet</span> = reverse (denoising) &nbsp;·&nbsp; <span style="color:var(--noise)">■ Amber</span> = pure noise</span>
+  <span>Drag to orbit · Scroll to zoom</span>
+</footer>
+</div>
+
+<script>
+// ── Three.js setup ──────────────────────────────────────────────
+const canvas = document.getElementById('canvas3d');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.setClearColor(0x06080f, 1);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(45, 2, 0.1, 200);
+
+const ambient = new THREE.AmbientLight(0xffffff, 0.3);
+scene.add(ambient);
+const pt1 = new THREE.PointLight(0x6ab0f5, 1.2, 20);
+pt1.position.set(4, 5, 3);
+scene.add(pt1);
+const pt2 = new THREE.PointLight(0xc97df5, 0.8, 20);
+pt2.position.set(-4, 2, -3);
+scene.add(pt2);
+
+// ── Particle system ─────────────────────────────────────────────
+let T = 200, N = 800, scheduleIdx = 0, speedMult = 2;
+let currentT = 0, phase = 'forward', running = false, ticker = null;
+
+const schedules = ['linear','cosine','quadratic'];
+
+function betaT(t) {
+  const tNorm = t / T;
+  if (scheduleIdx === 0) return 0.0001 + 0.02 * tNorm;           // linear
+  if (scheduleIdx === 1) {
+    // cosine: more noise in the middle
+    const f = t => Math.cos((t/T + 0.008)/(1+0.008) * Math.PI/2) ** 2;
+    return Math.min(1 - f(t)/f(0), 0.999);
+  }
+  return 0.0001 + 0.08 * tNorm * tNorm;                          // quadratic
+}
+
+function cumulativeAlpha(t) {
+  // ᾱₜ = ∏(1-βₛ) from s=1..t  — approximate with continuous integral
+  let logAlpha = 0;
+  const steps = Math.min(t, 50);
+  for (let s = 1; s <= steps; s++) {
+    const frac = Math.round(t * s / steps);
+    logAlpha += Math.log(1 - betaT(frac));
+  }
+  return Math.exp(logAlpha);
+}
+
+// Base positions (clean signal) for each mode
+let basePositions = [];   // Float32Array [x,y,z,...]
+let noiseVectors  = [];   // pre-sampled noise
+
+function randn() {
+  let u=0,v=0;
+  while(u===0)u=Math.random();
+  while(v===0)v=Math.random();
+  return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);
+}
+
+const modeDescs = {
+  sphere:   'Particles start arranged on a sphere surface. The forward process gradually corrupts them toward pure Gaussian noise. The reverse process denoises back to the sphere.',
+  gaussian: 'Particles start as a tight Gaussian cluster. Noise spreads them into an amorphous cloud — visualising how diffusion destroys the data distribution.',
+  helix:    'Particles follow a double helix — a structured 3D shape. Watch structure dissolve into noise, then re-emerge during the reverse pass.',
+};
+
+let currentMode = 'sphere';
+
+function generateBase(mode, n) {
+  const arr = new Float32Array(n * 3);
+  if (mode === 'sphere') {
+    for (let i = 0; i < n; i++) {
+      // fibonacci sphere
+      const phi = Math.acos(1 - 2*(i+0.5)/n);
+      const theta = Math.PI * (1 + Math.sqrt(5)) * i;
+      arr[i*3]   = 1.6 * Math.sin(phi)*Math.cos(theta);
+      arr[i*3+1] = 1.6 * Math.cos(phi);
+      arr[i*3+2] = 1.6 * Math.sin(phi)*Math.sin(theta);
+    }
+  } else if (mode === 'gaussian') {
+    for (let i = 0; i < n; i++) {
+      arr[i*3]   = randn()*0.5;
+      arr[i*3+1] = randn()*0.5;
+      arr[i*3+2] = randn()*0.5;
+    }
+  } else {
+    // double helix
+    for (let i = 0; i < n; i++) {
+      const strand = i % 2;
+      const t = (i / n) * Math.PI * 6 - Math.PI * 3;
+      const r = 1.2;
+      arr[i*3]   = r * Math.cos(t + strand * Math.PI);
+      arr[i*3+1] = t * 0.4;
+      arr[i*3+2] = r * Math.sin(t + strand * Math.PI);
+    }
+  }
+  return arr;
+}
+
+function generateNoise(n) {
+  const arr = new Float32Array(n * 3);
+  for (let i = 0; i < n * 3; i++) arr[i] = randn() * 1.6;
+  return arr;
+}
+
+// Point cloud geometry
+let pointsGeo, pointsMat, pointsMesh;
+
+function buildPoints() {
+  if (pointsMesh) scene.remove(pointsMesh);
+  pointsGeo = new THREE.BufferGeometry();
+  const pos = new Float32Array(N * 3);
+  pointsGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+
+  // Per-vertex colors
+  const cols = new Float32Array(N * 3);
+  pointsGeo.setAttribute('color', new THREE.BufferAttribute(cols, 3));
+
+  pointsMat = new THREE.PointsMaterial({
+    size: 0.045, vertexColors: true,
+    sizeAttenuation: true, transparent: true, opacity: 0.85,
+  });
+  pointsMesh = new THREE.Points(pointsGeo, pointsMat);
+  scene.add(pointsMesh);
+}
+
+function applyNoisedPositions(t) {
+  const alphaCum = cumulativeAlpha(t);
+  const sqrtAlpha = Math.sqrt(alphaCum);
+  const sqrtOneMinusAlpha = Math.sqrt(1 - alphaCum);
+  const pos = pointsGeo.attributes.position.array;
+  const col = pointsGeo.attributes.color.array;
+
+  // Color interpolation: clean(teal) → noise(amber) based on noise level
+  const noiseLevel = 1 - alphaCum;
+  // blue-violet for early, amber for noisy
+  const cr = noiseLevel * 0.95 + (1-noiseLevel) * (phase==='forward' ? 0.42 : 0.79);
+  const cg = noiseLevel * 0.78 + (1-noiseLevel) * (phase==='forward' ? 0.69 : 0.49);
+  const cb = noiseLevel * 0.42 + (1-noiseLevel) * (phase==='forward' ? 0.96 : 0.96);
+
+  for (let i = 0; i < N; i++) {
+    pos[i*3]   = sqrtAlpha * basePositions[i*3]   + sqrtOneMinusAlpha * noiseVectors[i*3];
+    pos[i*3+1] = sqrtAlpha * basePositions[i*3+1] + sqrtOneMinusAlpha * noiseVectors[i*3+1];
+    pos[i*3+2] = sqrtAlpha * basePositions[i*3+2] + sqrtOneMinusAlpha * noiseVectors[i*3+2];
+    col[i*3]   = cr; col[i*3+1] = cg; col[i*3+2] = cb;
+  }
+  pointsGeo.attributes.position.needsUpdate = true;
+  pointsGeo.attributes.color.needsUpdate = true;
+
+  // Update UI
+  const sigma = sqrtOneMinusAlpha.toFixed(3);
+  const signal = sqrtAlpha.toFixed(3);
+  document.getElementById('val-t').textContent = t;
+  document.getElementById('val-noise').textContent = sigma;
+  document.getElementById('val-phase').textContent = phase === 'forward' ? 'Forward ▶' : '◀ Reverse';
+  document.getElementById('val-phase').style.color = phase === 'forward' ? 'var(--fwd)' : 'var(--rev)';
+  document.getElementById('st-t').textContent = t + ' / ' + T;
+  document.getElementById('st-noise').textContent = sigma;
+  document.getElementById('st-signal').textContent = signal;
+  document.getElementById('st-phase').textContent = phase === 'forward' ? 'Fwd' : 'Rev';
+  document.getElementById('st-phase').className = 'sv ' + (phase === 'forward' ? 'fwd' : 'rev');
+
+  const pct = phase === 'forward' ? (t / T * 50) : (50 + (1 - t/T) * 50);
+  document.getElementById('progress-bar').style.width = pct + '%';
+  document.getElementById('progress-bar').style.background = phase === 'forward' ? 'var(--fwd)' : 'var(--rev)';
+
+  const pip = document.getElementById('pip-fwd');
+  const lbl = document.getElementById('lbl-process');
+  if (phase === 'forward') {
+    pip.style.background = 'var(--fwd)'; lbl.style.color = 'var(--fwd)';
+    lbl.textContent = t === 0 ? 'Clean data' : t === T ? 'Pure noise' : 'Adding noise…';
+  } else {
+    pip.style.background = 'var(--rev)'; lbl.style.color = 'var(--rev)';
+    lbl.textContent = t === 0 ? '✓ Reconstructed' : 'Denoising…';
+  }
+}
+
+function init(mode) {
+  currentMode = mode;
+  basePositions = generateBase(mode, N);
+  noiseVectors  = generateNoise(N);
+  buildPoints();
+  currentT = 0;
+  phase = 'forward';
+  applyNoisedPositions(0);
+  document.getElementById('mode-desc').textContent = modeDescs[mode];
+}
+
+init('sphere');
+
+// Axis helper: faint grid
+function buildGrid() {
+  const mat = new THREE.LineBasicMaterial({ color: 0x1a2040, opacity: 0.6, transparent: true });
+  const g = new THREE.Group();
+  const size = 2.5, divs = 8;
+  for (let i = -divs; i <= divs; i++) {
+    const f = i * size / divs;
+    g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-size,0,f), new THREE.Vector3(size,0,f)]), mat));
+    g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(f,0,-size), new THREE.Vector3(f,0,size)]), mat));
+  }
+  g.position.y = -2;
+  return g;
+}
+scene.add(buildGrid());
+
+// Step logic
+function doStep() {
+  if (phase === 'forward') {
+    currentT += speedMult;
+    if (currentT >= T) { currentT = T; applyNoisedPositions(T); phase = 'reverse'; return; }
+  } else {
+    currentT -= speedMult;
+    if (currentT <= 0) { currentT = 0; applyNoisedPositions(0); phase = 'forward'; return; }
+  }
+  applyNoisedPositions(currentT);
+}
+
+function stopRun() {
+  clearInterval(ticker); running = false;
+  document.getElementById('btn-run').textContent = '▶ Run';
+}
+
+function reset() {
+  stopRun();
+  currentT = 0; phase = 'forward';
+  noiseVectors = generateNoise(N);
+  applyNoisedPositions(0);
+  document.getElementById('progress-bar').style.width = '0%';
+}
+
+document.getElementById('btn-run').addEventListener('click', () => {
+  running = !running;
+  if (running) {
+    document.getElementById('btn-run').textContent = '⏸ Pause';
+    ticker = setInterval(doStep, 30);
+  } else stopRun();
+});
+document.getElementById('btn-step').addEventListener('click', doStep);
+document.getElementById('btn-reset').addEventListener('click', reset);
+
+// Sliders
+document.getElementById('sl-T').addEventListener('input', e => {
+  T = +e.target.value; document.getElementById('out-T').textContent = T;
+  reset();
+});
+document.getElementById('sl-beta').addEventListener('input', e => {
+  scheduleIdx = +e.target.value;
+  document.getElementById('out-beta').textContent = schedules[scheduleIdx];
+  reset();
+});
+document.getElementById('sl-N').addEventListener('input', e => {
+  N = +e.target.value; document.getElementById('out-N').textContent = N;
+  init(currentMode);
+});
+document.getElementById('sl-spd').addEventListener('input', e => {
+  speedMult = +e.target.value;
+  document.getElementById('out-spd').textContent = speedMult + '×';
+  if (running) { clearInterval(ticker); ticker = setInterval(doStep, 30); }
+});
+
+// Mode tabs
+document.querySelectorAll('.mode-tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.mode-tab').forEach(b => { b.classList.remove('active'); b.querySelector('.pip').style.background=''; });
+    btn.classList.add('active');
+    btn.querySelector('.pip').style.background = 'var(--rev)';
+    stopRun();
+    init(btn.dataset.mode);
+  });
+});
+
+// Camera orbit
+let theta = 0.6, phi = 1.1, radius = 7;
+function updateCam() {
+  camera.position.set(
+    radius * Math.sin(phi) * Math.sin(theta),
+    radius * Math.cos(phi) + 0.5,
+    radius * Math.sin(phi) * Math.cos(theta)
+  );
+  camera.lookAt(0, 0, 0);
+}
+updateCam();
+
+let drag = false, lastM = null;
+const clamp = (v,lo,hi) => Math.max(lo, Math.min(hi,v));
+canvas.addEventListener('mousedown', e => { drag=true; lastM={x:e.clientX,y:e.clientY}; });
+window.addEventListener('mouseup', () => { drag=false; });
+window.addEventListener('mousemove', e => {
+  if (!drag||!lastM) return;
+  theta -= (e.clientX-lastM.x)*0.007;
+  phi = clamp(phi-(e.clientY-lastM.y)*0.005, 0.2, 1.5);
+  lastM = {x:e.clientX,y:e.clientY};
+  updateCam();
+});
+canvas.addEventListener('wheel', e => {
+  radius = clamp(radius+e.deltaY*0.006, 3, 14);
+  updateCam(); e.preventDefault();
+}, {passive:false});
+let lt=null;
+canvas.addEventListener('touchstart', e => { lt={x:e.touches[0].clientX,y:e.touches[0].clientY}; });
+canvas.addEventListener('touchmove', e => {
+  if(!lt) return;
+  theta -= (e.touches[0].clientX-lt.x)*0.008;
+  phi = clamp(phi-(e.touches[0].clientY-lt.y)*0.006, 0.2, 1.5);
+  lt={x:e.touches[0].clientX,y:e.touches[0].clientY};
+  updateCam(); e.preventDefault();
+},{passive:false});
+
+// Slow auto-rotate when idle
+let lastInteract = Date.now();
+['mousedown','touchstart','wheel'].forEach(ev => canvas.addEventListener(ev, () => lastInteract=Date.now()));
+
+// Render loop
+(function loop() {
+  requestAnimationFrame(loop);
+  if (Date.now()-lastInteract > 3000) { theta += 0.003; updateCam(); }
+  renderer.render(scene, camera);
+})();
+
+// Resize
+function resize() {
+  const w=canvas.clientWidth, h=canvas.clientHeight;
+  renderer.setSize(w,h,false);
+  camera.aspect=w/h; camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(canvas);
+resize();
+</script>
+</body>
+</html>

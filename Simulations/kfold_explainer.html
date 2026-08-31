@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>K-Fold Cross Validation — Interactive Explainer</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0e0f14;
+    --surface: #161820;
+    --surface2: #1e2028;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.13);
+    --text: #e8e6f0;
+    --muted: #7c7a8e;
+    --accent: #7f77dd;
+    --accent-light: #afa9ec;
+    --train: #3C3489;
+    --train-bg: #2a2460;
+    --train-border: #534AB7;
+    --test: #993c1d;
+    --test-bg: #5c2310;
+    --test-border: #D85A30;
+    --green: #1D9E75;
+    --green-bg: rgba(29,158,117,0.12);
+    --amber: #BA7517;
+    --amber-bg: rgba(186,117,23,0.12);
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* ─── HEADER ─── */
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 28px 40px 24px;
+    display: flex;
+    align-items: flex-end;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+  .brand {
+    font-family: 'Syne', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(22px, 4vw, 34px);
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.5px;
+    line-height: 1.1;
+  }
+  h1 span { color: var(--accent-light); }
+
+  /* ─── LAYOUT ─── */
+  .container {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 36px 28px 60px;
+  }
+
+  /* ─── K SELECTOR ─── */
+  .k-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 32px;
+    flex-wrap: wrap;
+  }
+  .k-row label {
+    font-family: 'Syne', sans-serif;
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .k-pills { display: flex; gap: 8px; }
+  .k-pill {
+    width: 40px; height: 40px;
+    border-radius: 8px;
+    border: 1px solid var(--border2);
+    background: var(--surface);
+    color: var(--muted);
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.18s;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .k-pill:hover { border-color: var(--accent); color: var(--accent-light); }
+  .k-pill.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  /* ─── GRID ─── */
+  .grid-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 28px 28px 24px;
+    margin-bottom: 20px;
+  }
+  .section-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 18px;
+  }
+
+  .fold-rows { display: flex; flex-direction: column; gap: 10px; }
+  .fold-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .fold-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+    width: 56px;
+    flex-shrink: 0;
+    text-align: right;
+  }
+  .fold-cells { display: flex; gap: 6px; flex: 1; }
+  .fold-cell {
+    flex: 1;
+    height: 40px;
+    border-radius: 7px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-family: 'DM Mono', monospace;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    border: 1px solid transparent;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .cell-train {
+    background: var(--train-bg);
+    border-color: var(--train-border);
+    color: var(--accent-light);
+  }
+  .cell-test {
+    background: var(--test-bg);
+    border-color: var(--test-border);
+    color: #f0997b;
+  }
+  .cell-done {
+    background: rgba(29,158,117,0.1);
+    border-color: rgba(29,158,117,0.3);
+    color: #1D9E75;
+    opacity: 0.7;
+  }
+  .cell-idle {
+    background: var(--surface2);
+    border-color: var(--border);
+    color: var(--border2);
+    opacity: 0.45;
+  }
+  .fold-score {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    width: 80px;
+    flex-shrink: 0;
+    color: var(--green);
+    opacity: 0;
+    transition: opacity 0.4s;
+    text-align: left;
+  }
+  .fold-score.visible { opacity: 1; }
+
+  /* ─── CONTROLS ─── */
+  .controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 20px 0 0;
+    flex-wrap: wrap;
+  }
+  .btn {
+    padding: 9px 20px;
+    border-radius: 8px;
+    border: 1px solid var(--border2);
+    background: var(--surface2);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    cursor: pointer;
+    transition: all 0.18s;
+  }
+  .btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent-light); }
+  .btn:disabled { opacity: 0.3; cursor: default; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.primary:hover:not(:disabled) { background: var(--accent-light); border-color: var(--accent-light); color: #26215c; }
+  .round-badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+    margin-left: 4px;
+  }
+
+  /* ─── EXPLANATION ─── */
+  .explain-card {
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    padding: 20px 22px;
+    background: var(--surface);
+    margin-bottom: 20px;
+    transition: all 0.3s;
+    min-height: 88px;
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+  }
+  .explain-icon {
+    width: 34px; height: 34px;
+    border-radius: 8px;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+  .explain-body { flex: 1; }
+  .explain-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent-light);
+    margin-bottom: 4px;
+  }
+  .explain-text {
+    font-size: 14px;
+    color: var(--muted);
+    line-height: 1.55;
+  }
+  .explain-text strong { color: var(--text); font-weight: 500; }
+  .explain-text em { color: var(--test-border); font-style: normal; }
+
+  /* ─── RESULT ─── */
+  .result-card {
+    border-radius: 12px;
+    border: 1px solid rgba(29,158,117,0.25);
+    padding: 22px 24px;
+    background: var(--green-bg);
+    margin-bottom: 20px;
+    display: none;
+  }
+  .result-card.visible { display: block; animation: fadeUp 0.4s ease; }
+  @keyframes fadeUp {
+    from { opacity:0; transform: translateY(8px); }
+    to   { opacity:1; transform: translateY(0); }
+  }
+  .result-row {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+  }
+  .result-label {
+    font-family: 'Syne', sans-serif;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--green);
+  }
+  .result-num {
+    font-family: 'Syne', sans-serif;
+    font-size: 36px;
+    font-weight: 700;
+    color: #5DCAA5;
+  }
+  .result-desc {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+  .score-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  .score-chip {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 5px;
+    background: rgba(29,158,117,0.15);
+    border: 1px solid rgba(29,158,117,0.25);
+    color: #5DCAA5;
+  }
+
+  /* ─── CONCEPT CARDS ─── */
+  .concepts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 14px;
+    margin-top: 28px;
+  }
+  .concept-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 20px;
+    transition: border-color 0.2s;
+  }
+  .concept-card:hover { border-color: var(--border2); }
+  .concept-num {
+    font-family: 'Syne', sans-serif;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .concept-heading {
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 6px;
+  }
+  .concept-body {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+  .concept-body strong { color: var(--text); font-weight: 500; }
+
+  /* ─── LEGEND ─── */
+  .legend {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    margin-bottom: 18px;
+  }
+  .legend-item { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--muted); }
+  .legend-dot {
+    width: 12px; height: 12px;
+    border-radius: 3px;
+    border: 1px solid;
+    flex-shrink: 0;
+  }
+  .ld-train { background: var(--train-bg); border-color: var(--train-border); }
+  .ld-test  { background: var(--test-bg);  border-color: var(--test-border); }
+  .ld-done  { background: rgba(29,158,117,0.1); border-color: rgba(29,158,117,0.35); }
+
+  /* ─── PROGRESS BAR ─── */
+  .progress-wrap {
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    margin-bottom: 20px;
+    overflow: hidden;
+  }
+  .progress-bar {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 2px;
+    transition: width 0.4s ease;
+  }
+
+  /* ─── FOOTER ─── */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 20px 40px;
+    font-size: 12px;
+    color: var(--muted);
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  @media (max-width: 540px) {
+    header { padding: 20px 18px; }
+    .container { padding: 24px 16px 48px; }
+    .fold-label { width: 42px; font-size: 11px; }
+    footer { padding: 16px 18px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="brand">ML Evaluation · Interactive Explainer</div>
+    <h1>K-Fold <span>Cross Validation</span></h1>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- K Selector -->
+  <div class="k-row">
+    <label>Number of folds (K)</label>
+    <div class="k-pills" id="k-pills">
+      <button class="k-pill" onclick="setK(3)">3</button>
+      <button class="k-pill active" onclick="setK(5)">5</button>
+      <button class="k-pill" onclick="setK(10)">10</button>
+    </div>
+  </div>
+
+  <!-- Explanation card -->
+  <div class="explain-card" id="explain-card">
+    <div class="explain-icon">💡</div>
+    <div class="explain-body">
+      <div class="explain-title" id="explain-title">What is K-Fold Cross Validation?</div>
+      <div class="explain-text" id="explain-text">
+        Your dataset is split into <strong id="k-mention">5</strong> equal chunks called <em>folds</em>.
+        In each round, one fold is held out as the <em>test set</em> — the model is trained on the remaining <strong id="k1-mention">4</strong> folds and tested on the one it has never seen.
+        Click <strong>Next Round →</strong> to begin.
+      </div>
+    </div>
+  </div>
+
+  <!-- Grid -->
+  <div class="grid-section">
+    <div class="section-title">Fold layout — each row = one round</div>
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot ld-train"></div> Training fold</div>
+      <div class="legend-item"><div class="legend-dot ld-test"></div> Test fold (held out)</div>
+      <div class="legend-item"><div class="legend-dot ld-done"></div> Round complete</div>
+    </div>
+    <div class="progress-wrap"><div class="progress-bar" id="progress-bar" style="width:0%"></div></div>
+    <div class="fold-rows" id="fold-rows"></div>
+    <div class="controls">
+      <button class="btn" id="prev-btn" onclick="prevStep()" disabled>← Prev</button>
+      <button class="btn primary" id="next-btn" onclick="nextStep()">Next Round →</button>
+      <span class="round-badge" id="round-badge">Not started</span>
+    </div>
+  </div>
+
+  <!-- Result -->
+  <div class="result-card" id="result-card">
+    <div class="result-row">
+      <span class="result-label">Final CV Accuracy</span>
+      <span class="result-num" id="result-num">—</span>
+    </div>
+    <div class="result-desc">
+      Average of all <strong id="result-k">5</strong> test scores. Every data point was tested exactly once, making this estimate far more reliable than a single train/test split.
+    </div>
+    <div class="score-chips" id="score-chips"></div>
+    <div style="margin-top:16px;">
+      <button class="btn" onclick="reset()">↺ Reset</button>
+    </div>
+  </div>
+
+  <!-- Concept cards -->
+  <div class="concepts">
+    <div class="concept-card">
+      <div class="concept-num">Why it matters</div>
+      <div class="concept-heading">No data point is wasted</div>
+      <div class="concept-body">Every sample gets to be in the test set exactly once. With a small dataset, this is far better than permanently setting aside 20% just for testing.</div>
+    </div>
+    <div class="concept-card">
+      <div class="concept-num">The problem it solves</div>
+      <div class="concept-heading">Avoiding lucky splits</div>
+      <div class="concept-body">Testing once could give you a <strong>misleadingly high or low score</strong> depending on which samples ended up in the test set by chance. K-fold averages this out.</div>
+    </div>
+    <div class="concept-card">
+      <div class="concept-num">Choosing K</div>
+      <div class="concept-heading">K = 5 or 10 is standard</div>
+      <div class="concept-body">Higher K = more training data per round, but slower. <strong>K=5</strong> is a good default. <strong>K=n</strong> (Leave-One-Out CV) is the extreme case — each sample is its own test set.</div>
+    </div>
+    <div class="concept-card">
+      <div class="concept-num">Key formula</div>
+      <div class="concept-heading">Train on k−1, test on 1</div>
+      <div class="concept-body">If K=5, each round trains on <strong>4 folds (k−1)</strong> and tests on <strong>1 fold</strong>. The test fold rotates each round until every fold has been the test set once.</div>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  <span>K-Fold Cross Validation · Interactive Explainer</span>
+  <span>Use this to explain ML model evaluation to students</span>
+</footer>
+
+<script>
+  let K = 5;
+  let step = 0;
+
+  // Deterministic fake accuracy scores per K
+  const scoreTable = {
+    3:  [89, 85, 91],
+    5:  [88, 91, 85, 92, 87],
+    10: [90,87,93,85,91,88,94,83,90,89]
+  };
+
+  const icons = ['💡','🔍','🔬','🧪','📊','✅','🎯','📈','🧠','💎'];
+  const explanations = {
+    intro: (k) => ({
+      title: 'What is K-Fold Cross Validation?',
+      text: `Your dataset is split into <strong>${k}</strong> equal chunks called <em>folds</em>. In each round, one fold is held out as the <em>test set</em> — the model trains on the remaining <strong>${k-1}</strong> folds and is tested on the one it has never seen. Click <strong>Next Round →</strong> to begin.`
+    }),
+    round: (i, k, score) => ({
+      title: `Round ${i} of ${k} — Testing on Fold ${i}`,
+      text: `Fold <em>${i}</em> is completely held out. The model has <strong>never seen</strong> this data during training. It trains on folds ${Array.from({length:k},(_,x)=>x+1).filter(x=>x!==i).join(', ')} — then predicts on Fold ${i}. Result: <strong style="color:#5DCAA5">${score}% accuracy</strong>`
+    }),
+  };
+
+  function setK(k) {
+    K = k;
+    step = 0;
+    document.querySelectorAll('.k-pill').forEach(p => {
+      p.classList.toggle('active', parseInt(p.textContent) === k);
+    });
+    document.getElementById('k-mention').textContent = k;
+    document.getElementById('k1-mention').textContent = k - 1;
+    render();
+  }
+
+  function render() {
+    const scores = scoreTable[K];
+    renderGrid(scores);
+    renderExplanation(scores);
+    renderResult(scores);
+    document.getElementById('prev-btn').disabled = step === 0;
+    document.getElementById('next-btn').disabled = step === K;
+    const bar = step === 0 ? 0 : Math.round((step / K) * 100);
+    document.getElementById('progress-bar').style.width = bar + '%';
+    const badge = document.getElementById('round-badge');
+    badge.textContent = step === 0 ? 'Not started' : (step === K ? '✓ All rounds complete' : `Round ${step} of ${K}`);
+  }
+
+  function renderGrid(scores) {
+    const container = document.getElementById('fold-rows');
+    let html = '';
+    for (let i = 0; i < K; i++) {
+      const rowActive = i === step - 1; // currently active row (just done)
+      const rowDone = i < step - 1;     // already done
+      const rowFuture = i >= step;      // not yet reached
+
+      html += `<div class="fold-row">`;
+      html += `<span class="fold-label">Round ${i+1}</span>`;
+      html += `<div class="fold-cells">`;
+
+      for (let j = 0; j < K; j++) {
+        if (j === i) {
+          // test cell
+          if (i < step - 1) html += `<div class="fold-cell cell-done">✓ test</div>`;
+          else if (i === step - 1) html += `<div class="fold-cell cell-test">← TEST</div>`;
+          else html += `<div class="fold-cell cell-idle">test</div>`;
+        } else {
+          // train cell
+          if (i < step - 1) html += `<div class="fold-cell cell-done">train</div>`;
+          else if (i === step - 1) html += `<div class="fold-cell cell-train">train</div>`;
+          else html += `<div class="fold-cell cell-idle">train</div>`;
+        }
+      }
+
+      html += `</div>`;
+      const scoreVisible = i < step;
+      html += `<span class="fold-score${scoreVisible ? ' visible' : ''}">${scoreVisible ? scores[i] + '%' : ''}</span>`;
+      html += `</div>`;
+    }
+    container.innerHTML = html;
+  }
+
+  function renderExplanation(scores) {
+    const card = document.getElementById('explain-card');
+    const titleEl = document.getElementById('explain-title');
+    const textEl = document.getElementById('explain-text');
+    const iconEl = card.querySelector('.explain-icon');
+
+    if (step === 0) {
+      const e = explanations.intro(K);
+      titleEl.textContent = e.title;
+      textEl.innerHTML = e.text;
+      iconEl.textContent = '💡';
+    } else {
+      const e = explanations.round(step, K, scores[step - 1]);
+      titleEl.textContent = e.title;
+      textEl.innerHTML = e.text;
+      iconEl.textContent = icons[step - 1] || '🔬';
+    }
+  }
+
+  function renderResult(scores) {
+    const card = document.getElementById('result-card');
+    if (step < K) {
+      card.classList.remove('visible');
+      return;
+    }
+    card.classList.add('visible');
+    const avg = (scores.reduce((a,b)=>a+b,0) / K).toFixed(1);
+    document.getElementById('result-num').textContent = avg + '%';
+    document.getElementById('result-k').textContent = K;
+    const chips = document.getElementById('score-chips');
+    chips.innerHTML = scores.map((s,i) => `<span class="score-chip">Fold ${i+1}: ${s}%</span>`).join('');
+  }
+
+  function nextStep() { if (step < K) { step++; render(); } }
+  function prevStep() { if (step > 0) { step--; render(); } }
+  function reset() { step = 0; render(); }
+
+  // init
+  render();
+</script>
+</body>
+</html>

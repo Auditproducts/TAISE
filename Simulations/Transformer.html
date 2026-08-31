@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Transformer Model Interactive Demo</title>
+
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    background: #0f172a;
+    color: #e2e8f0;
+    text-align: center;
+    padding: 20px;
+  }
+
+  h1 { margin-bottom: 5px; }
+
+  input {
+    padding: 10px;
+    width: 60%;
+    border-radius: 8px;
+    border: none;
+    margin: 10px;
+  }
+
+  button {
+    padding: 10px 15px;
+    border-radius: 8px;
+    border: none;
+    background: #3b82f6;
+    color: white;
+    cursor: pointer;
+  }
+
+  button:hover {
+    background: #2563eb;
+  }
+
+  .tokens {
+    margin-top: 20px;
+  }
+
+  .token {
+    display: inline-block;
+    padding: 10px;
+    margin: 5px;
+    border-radius: 8px;
+    background: #1e293b;
+    cursor: pointer;
+  }
+
+  .token.active {
+    background: #22c55e;
+    color: black;
+  }
+
+  .attention {
+    margin-top: 20px;
+  }
+
+  .bar {
+    height: 20px;
+    margin: 5px auto;
+    border-radius: 6px;
+    background: #3b82f6;
+    transition: width 0.3s;
+  }
+
+  .label {
+    font-size: 12px;
+  }
+
+</style>
+</head>
+
+<body>
+
+<h1>Transformer AI Model Simulation</h1>
+<p>Click a token to see its attention distribution</p>
+
+<input id="sentence" value="AI models understand context using attention">
+<br>
+<button onclick="processSentence()">Tokenize & Compute Attention</button>
+
+<div class="tokens" id="tokens"></div>
+<div class="attention" id="attention"></div>
+
+<script>
+
+let tokens = [];
+
+function processSentence() {
+  const sentence = document.getElementById("sentence").value;
+  tokens = sentence.split(" ");
+
+  const tokenContainer = document.getElementById("tokens");
+  tokenContainer.innerHTML = "";
+
+  tokens.forEach((word, index) => {
+    const span = document.createElement("span");
+    span.className = "token";
+    span.innerText = word;
+    span.onclick = () => showAttention(index);
+    tokenContainer.appendChild(span);
+  });
+
+  document.getElementById("attention").innerHTML = "";
+}
+
+function showAttention(selectedIndex) {
+  const tokenElements = document.querySelectorAll(".token");
+
+  tokenElements.forEach(el => el.classList.remove("active"));
+  tokenElements[selectedIndex].classList.add("active");
+
+  const attentionContainer = document.getElementById("attention");
+  attentionContainer.innerHTML = "";
+
+  let weights = [];
+
+  // Simulate attention weights
+  for (let i = 0; i < tokens.length; i++) {
+    let distance = Math.abs(i - selectedIndex);
+    let weight = Math.exp(-distance); // closer words get higher attention
+    weights.push(weight);
+  }
+
+  // Normalize
+  let sum = weights.reduce((a, b) => a + b, 0);
+  weights = weights.map(w => w / sum);
+
+  // Render bars
+  weights.forEach((w, i) => {
+    const bar = document.createElement("div");
+    bar.className = "bar";
+    bar.style.width = (w * 300) + "px";
+
+    const label = document.createElement("div");
+    label.className = "label";
+    label.innerText = tokens[i] + " (" + w.toFixed(2) + ")";
+
+    attentionContainer.appendChild(label);
+    attentionContainer.appendChild(bar);
+  });
+}
+
+</script>
+
+</body>
+</html>

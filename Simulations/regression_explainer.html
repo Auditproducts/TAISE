@@ -1,0 +1,1155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Regression — An Interactive Guide</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --surface2: #1a1a26;
+    --accent: #e8c547;
+    --accent2: #4fc3f7;
+    --accent3: #f06292;
+    --text: #e8e8f0;
+    --muted: #7878a0;
+    --border: #2a2a3d;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 300;
+    line-height: 1.7;
+    overflow-x: hidden;
+  }
+
+  /* Grain overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 999;
+    opacity: 0.4;
+  }
+
+  /* Header */
+  header {
+    padding: 80px 60px 40px;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+
+  header::after {
+    content: 'y = mx + b';
+    position: absolute;
+    right: -20px;
+    top: 20px;
+    font-family: 'Playfair Display', serif;
+    font-size: 120px;
+    color: var(--border);
+    opacity: 0.4;
+    pointer-events: none;
+    white-space: nowrap;
+  }
+
+  .eyebrow {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 16px;
+  }
+
+  h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(48px, 8vw, 96px);
+    font-weight: 700;
+    line-height: 0.95;
+    letter-spacing: -2px;
+    margin-bottom: 24px;
+  }
+
+  h1 em {
+    font-style: italic;
+    color: var(--accent);
+  }
+
+  .subtitle {
+    color: var(--muted);
+    font-size: 18px;
+    max-width: 520px;
+    line-height: 1.6;
+  }
+
+  /* Nav */
+  nav {
+    display: flex;
+    gap: 4px;
+    padding: 20px 60px;
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+  }
+
+  .nav-btn {
+    background: none;
+    border: 1px solid transparent;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 1px;
+    padding: 8px 20px;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+
+  .nav-btn:hover { color: var(--text); border-color: var(--border); }
+  .nav-btn.active { color: var(--accent); border-color: var(--accent); background: rgba(232,197,71,0.07); }
+
+  /* Sections */
+  .section { display: none; padding: 60px; animation: fadeIn 0.4s ease; }
+  .section.active { display: block; }
+
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* Section headings */
+  h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 40px;
+    font-weight: 400;
+    margin-bottom: 8px;
+    line-height: 1.1;
+  }
+
+  h3 {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 32px;
+  }
+
+  p { color: var(--muted); margin-bottom: 20px; max-width: 700px; }
+  p strong { color: var(--text); font-weight: 500; }
+
+  /* Canvas */
+  .canvas-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 24px;
+    margin: 32px 0;
+    position: relative;
+  }
+
+  canvas {
+    display: block;
+    width: 100%;
+    cursor: crosshair;
+    border-radius: 2px;
+  }
+
+  .canvas-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+
+  /* Controls */
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+    margin: 20px 0;
+  }
+
+  .btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 1px;
+    padding: 10px 20px;
+    cursor: pointer;
+    transition: all 0.2s;
+    border-radius: 2px;
+  }
+
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn.primary { background: var(--accent); color: var(--bg); border-color: var(--accent); font-weight: 500; }
+  .btn.primary:hover { background: #d4b23a; }
+
+  /* Sliders */
+  .slider-group { display: flex; flex-direction: column; gap: 4px; }
+  .slider-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    display: flex;
+    justify-content: space-between;
+  }
+
+  input[type=range] {
+    -webkit-appearance: none;
+    width: 200px;
+    height: 2px;
+    background: var(--border);
+    outline: none;
+    border-radius: 1px;
+  }
+
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    background: var(--accent);
+    border-radius: 50%;
+    cursor: pointer;
+  }
+
+  /* Stats bar */
+  .stats {
+    display: flex;
+    gap: 32px;
+    flex-wrap: wrap;
+    margin: 20px 0;
+  }
+
+  .stat {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .stat-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .stat-val {
+    font-family: 'DM Mono', monospace;
+    font-size: 22px;
+    color: var(--accent);
+    font-weight: 500;
+  }
+
+  /* Info boxes */
+  .info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 16px;
+    margin: 32px 0;
+  }
+
+  .info-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 28px;
+  }
+
+  .info-card h4 {
+    font-family: 'Playfair Display', serif;
+    font-size: 22px;
+    margin-bottom: 10px;
+    color: var(--text);
+  }
+
+  .info-card .tag {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--accent2);
+    margin-bottom: 16px;
+    display: block;
+  }
+
+  .info-card p { font-size: 14px; margin-bottom: 0; }
+
+  /* Formula box */
+  .formula {
+    background: var(--surface2);
+    border-left: 3px solid var(--accent);
+    padding: 20px 28px;
+    margin: 24px 0;
+    border-radius: 0 4px 4px 0;
+    font-family: 'DM Mono', monospace;
+    font-size: 18px;
+    color: var(--text);
+    letter-spacing: 1px;
+  }
+
+  .formula span { color: var(--accent); }
+  .formula small { display: block; font-size: 12px; color: var(--muted); margin-top: 8px; letter-spacing: 0; font-family: 'DM Sans', sans-serif; }
+
+  /* Step quiz */
+  .quiz-option {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 16px 20px;
+    margin: 8px 0;
+    cursor: pointer;
+    font-size: 15px;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .quiz-option:hover { border-color: var(--accent2); }
+  .quiz-option.correct { border-color: #4caf50; background: rgba(76,175,80,0.1); color: #4caf50; }
+  .quiz-option.wrong { border-color: var(--accent3); background: rgba(240,98,146,0.1); color: var(--accent3); }
+
+  .quiz-icon { font-size: 18px; }
+
+  #quiz-feedback {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    margin-top: 16px;
+    padding: 12px 20px;
+    border-radius: 4px;
+    display: none;
+  }
+
+  #quiz-feedback.show { display: block; }
+  #quiz-feedback.correct-fb { background: rgba(76,175,80,0.1); color: #4caf50; }
+  #quiz-feedback.wrong-fb { background: rgba(240,98,146,0.1); color: var(--accent3); }
+
+  /* Types section */
+  .type-tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+  }
+
+  .type-tab {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 1px;
+    padding: 8px 16px;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: all 0.2s;
+  }
+
+  .type-tab:hover { color: var(--text); }
+  .type-tab.active { color: var(--accent2); border-color: var(--accent2); background: rgba(79,195,247,0.08); }
+
+  .type-content { display: none; }
+  .type-content.active { display: block; }
+
+  /* Animated metrics */
+  .metric-bar-wrap { margin: 8px 0; }
+  .metric-bar-label { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); margin-bottom: 4px; display: flex; justify-content: space-between; }
+  .metric-bar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+  .metric-bar-fill { height: 100%; border-radius: 3px; transition: width 0.8s cubic-bezier(0.4,0,0.2,1); }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  @media (max-width: 768px) {
+    header, nav, .section { padding: 40px 24px; }
+    nav { padding: 16px 24px; }
+    h1 { font-size: 48px; }
+    header::after { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="eyebrow">Interactive Guide · Statistics</div>
+  <h1>Under<em>standing</em><br>Regression</h1>
+  <p class="subtitle">From drawing lines through data to predicting the future — a hands-on journey through one of statistics' most powerful ideas.</p>
+</header>
+
+<nav>
+  <button class="nav-btn active" onclick="showSection('intro')">01 · What is it?</button>
+  <button class="nav-btn" onclick="showSection('playground')">02 · Draw & Fit</button>
+  <button class="nav-btn" onclick="showSection('types')">03 · Types</button>
+  <button class="nav-btn" onclick="showSection('metrics')">04 · How Good is Fit?</button>
+  <button class="nav-btn" onclick="showSection('assumptions')">05 · Assumptions</button>
+  <button class="nav-btn" onclick="showSection('quiz')">06 · Test Yourself</button>
+</nav>
+
+<!-- SECTION 1: INTRO -->
+<div class="section active" id="intro">
+  <h3>Chapter One</h3>
+  <h2>What is Regression?</h2>
+
+  <p>Regression is a statistical method that lets us understand <strong>how one variable changes in relation to another</strong>. If you can observe two things happening together, regression helps you figure out the rule connecting them — and use that rule to predict the future.</p>
+
+  <div class="formula">
+    <span>ŷ</span> = β₀ + β₁<span>x</span> + ε
+    <small>ŷ = predicted output &nbsp;·&nbsp; β₀ = intercept &nbsp;·&nbsp; β₁ = slope &nbsp;·&nbsp; ε = error (noise)</small>
+  </div>
+
+  <p>The idea is simple: <strong>find the line (or curve) that best describes the relationship</strong> in your data. Once you have that line, plug in a new value of x and get a prediction for y.</p>
+
+  <div class="info-grid">
+    <div class="info-card">
+      <span class="tag">Dependent Variable</span>
+      <h4>The Output — y</h4>
+      <p>The thing you're trying to predict or explain. Also called the <em>response variable</em>. Example: house price, exam score, sales revenue.</p>
+    </div>
+    <div class="info-card">
+      <span class="tag">Independent Variable</span>
+      <h4>The Input — x</h4>
+      <p>The thing you use to make predictions. Also called a <em>predictor</em> or <em>feature</em>. Example: house size, study hours, ad spend.</p>
+    </div>
+    <div class="info-card">
+      <span class="tag">The Line</span>
+      <h4>Best Fit</h4>
+      <p>The goal of regression is to find the line (or curve) that <em>minimises the total error</em> between predictions and actual values.</p>
+    </div>
+    <div class="info-card">
+      <span class="tag">Real World Uses</span>
+      <h4>Applications</h4>
+      <p>Stock prices, medical dosages, climate modelling, credit scoring, sports analytics, economic forecasting.</p>
+    </div>
+  </div>
+
+  <p>The most common method — <strong>Ordinary Least Squares (OLS)</strong> — finds the line that minimises the sum of squared residuals (the vertical distances between each data point and the line). Head to <em>Draw & Fit</em> to see this live.</p>
+
+  <button class="btn primary" onclick="showSection('playground')">Try the Playground →</button>
+</div>
+
+<!-- SECTION 2: PLAYGROUND -->
+<div class="section" id="playground">
+  <h3>Chapter Two</h3>
+  <h2>Draw Points, Fit a Line</h2>
+  <p>Click on the canvas to <strong>add data points</strong>. The regression line will update instantly. See how the line changes as you add more points, and what happens when you add outliers.</p>
+
+  <div class="controls">
+    <button class="btn primary" onclick="fitLine()">Fit Regression Line</button>
+    <button class="btn" onclick="clearPoints()">Clear</button>
+    <button class="btn" onclick="loadPreset('linear')">Load: Linear</button>
+    <button class="btn" onclick="loadPreset('scattered')">Load: Scattered</button>
+    <button class="btn" onclick="loadPreset('outlier')">Load: With Outlier</button>
+    <div style="display:flex;align-items:center;gap:8px;margin-left:8px">
+      <input type="checkbox" id="showResiduals" onchange="redraw()">
+      <label for="showResiduals" style="font-family:'DM Mono',monospace;font-size:12px;color:var(--muted);cursor:pointer">Show residuals</label>
+    </div>
+  </div>
+
+  <div class="canvas-wrap">
+    <div class="canvas-label">Click to add points</div>
+    <canvas id="mainCanvas" height="400"></canvas>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><span class="stat-label">Points</span><span class="stat-val" id="nPoints">0</span></div>
+    <div class="stat"><span class="stat-label">Slope (β₁)</span><span class="stat-val" id="slopeVal">—</span></div>
+    <div class="stat"><span class="stat-label">Intercept (β₀)</span><span class="stat-val" id="interceptVal">—</span></div>
+    <div class="stat"><span class="stat-label">R² Score</span><span class="stat-val" id="r2Val">—</span></div>
+  </div>
+
+  <div class="info-grid">
+    <div class="info-card">
+      <span class="tag">Residuals</span>
+      <h4>What are the red lines?</h4>
+      <p>Residuals are the vertical distance from each point to the line. Regression minimises the <em>sum of squared residuals</em> — this is called Least Squares.</p>
+    </div>
+    <div class="info-card">
+      <span class="tag">Outliers</span>
+      <h4>Watch how one point can pull the line</h4>
+      <p>Add a point far from the cluster and watch the line tilt. Outliers have a large residual and can heavily influence the regression.</p>
+    </div>
+  </div>
+</div>
+
+<!-- SECTION 3: TYPES -->
+<div class="section" id="types">
+  <h3>Chapter Three</h3>
+  <h2>Types of Regression</h2>
+  <p>Linear regression is just the beginning. Different problems call for different regression techniques.</p>
+
+  <div class="type-tabs">
+    <button class="type-tab active" onclick="showType('simple')">Simple Linear</button>
+    <button class="type-tab" onclick="showType('multiple')">Multiple Linear</button>
+    <button class="type-tab" onclick="showType('polynomial')">Polynomial</button>
+    <button class="type-tab" onclick="showType('logistic')">Logistic</button>
+    <button class="type-tab" onclick="showType('ridge')">Ridge / Lasso</button>
+  </div>
+
+  <div class="type-content active" id="type-simple">
+    <div class="formula"><span>ŷ</span> = β₀ + β₁<span>x</span><small>One predictor → one outcome. The classic.</small></div>
+    <p><strong>Simple Linear Regression</strong> models the relationship between a single independent variable and a dependent variable using a straight line. It's the foundation of all regression analysis.</p>
+    <p>Example: predicting a student's exam score from hours studied.</p>
+    <div class="canvas-wrap"><canvas id="typeCanvas1" height="300"></canvas></div>
+  </div>
+
+  <div class="type-content" id="type-multiple">
+    <div class="formula"><span>ŷ</span> = β₀ + β₁<span>x₁</span> + β₂<span>x₂</span> + … + βₙ<span>xₙ</span><small>Many predictors → one outcome. More realistic.</small></div>
+    <p><strong>Multiple Linear Regression</strong> uses two or more predictor variables. This lets us model complex real-world situations where multiple factors influence an outcome.</p>
+    <p>Example: predicting house price from size, location, number of rooms, and age.</p>
+    <div class="info-card">
+      <span class="tag">Visualising Multiple Regression</span>
+      <h4>Beyond 2D</h4>
+      <p>With two predictors, the "line" becomes a plane in 3D space. With more predictors, it's a hyperplane — impossible to visualise but mathematically well-defined.</p>
+    </div>
+  </div>
+
+  <div class="type-content" id="type-polynomial">
+    <div class="formula"><span>ŷ</span> = β₀ + β₁<span>x</span> + β₂<span>x²</span> + β₃<span>x³</span>…<small>Curves, not just lines. For non-linear relationships.</small></div>
+    <p><strong>Polynomial Regression</strong> fits a curved line by adding higher powers of x. It's still a linear model (linear in the coefficients) but can model non-linear patterns.</p>
+    <p>Example: modelling the trajectory of a thrown ball, or the growth rate of a population.</p>
+    <div class="canvas-wrap"><canvas id="typeCanvas3" height="300"></canvas></div>
+  </div>
+
+  <div class="type-content" id="type-logistic">
+    <div class="formula"><span>P(y=1)</span> = 1 / (1 + e<sup>-(β₀+β₁x)</sup>)<small>Predicts probabilities. Output is always between 0 and 1.</small></div>
+    <p><strong>Logistic Regression</strong> is used when the output is a category (yes/no, spam/not spam). It models the <em>probability</em> of a class using an S-shaped (sigmoid) curve.</p>
+    <p>Example: predicting if an email is spam, or if a patient has a disease.</p>
+    <div class="canvas-wrap"><canvas id="typeCanvas4" height="300"></canvas></div>
+  </div>
+
+  <div class="type-content" id="type-ridge">
+    <div class="formula">Loss = Σ(y - ŷ)² + <span>λΣβ²</span><small>Adds a penalty to prevent overfitting. λ controls the strength.</small></div>
+    <p><strong>Ridge Regression</strong> (L2) and <strong>Lasso</strong> (L1) add a penalty term to the loss function to shrink large coefficients. This prevents overfitting and handles multicollinearity.</p>
+    <p>Lasso can reduce some coefficients to exactly zero — effectively performing feature selection.</p>
+    <div class="info-grid">
+      <div class="info-card">
+        <span class="tag">Ridge (L2)</span>
+        <h4>Shrinks all coefficients</h4>
+        <p>Good when all features contribute a little. Coefficients approach zero but never reach it.</p>
+      </div>
+      <div class="info-card">
+        <span class="tag">Lasso (L1)</span>
+        <h4>Sets some to zero</h4>
+        <p>Good for sparse models. Automatically selects the most important features.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SECTION 4: METRICS -->
+<div class="section" id="metrics">
+  <h3>Chapter Four</h3>
+  <h2>Measuring the Fit</h2>
+  <p>How do we know if our regression model is any good? These metrics help us evaluate its performance.</p>
+
+  <div class="info-grid">
+    <div class="info-card">
+      <span class="tag">Goodness of Fit</span>
+      <h4>R² — Coefficient of Determination</h4>
+      <p>Tells you what <em>proportion of variance</em> in y is explained by x. R² = 1 is perfect; R² = 0 means the model explains nothing. R² = 0.85 means 85% of variation is captured.</p>
+    </div>
+    <div class="info-card">
+      <span class="tag">Error Magnitude</span>
+      <h4>RMSE — Root Mean Square Error</h4>
+      <p>The average distance between predictions and actual values, in the same units as y. Lower is better. Sensitive to outliers.</p>
+    </div>
+    <div class="info-card">
+      <span class="tag">Robust Error</span>
+      <h4>MAE — Mean Absolute Error</h4>
+      <p>Average absolute difference between predictions and actual values. More robust to outliers than RMSE.</p>
+    </div>
+    <div class="info-card">
+      <span class="tag">Model Complexity</span>
+      <h4>Adjusted R²</h4>
+      <p>Like R² but penalises adding unnecessary predictors. Use this when comparing models with different numbers of features.</p>
+    </div>
+  </div>
+
+  <h3 style="margin-top:40px">Interactive R² Explorer</h3>
+  <p>Use the slider to add noise to data and see how R² changes.</p>
+
+  <div class="controls">
+    <div class="slider-group">
+      <div class="slider-label"><span>Noise Level</span><span id="noiseLabel">0.5</span></div>
+      <input type="range" id="noiseSlider" min="0.05" max="3" step="0.05" value="0.5" oninput="updateNoise(this.value)">
+    </div>
+    <div class="slider-group">
+      <div class="slider-label"><span>Sample Size</span><span id="sizeLabel">30</span></div>
+      <input type="range" id="sizeSlider" min="10" max="100" step="5" value="30" oninput="updateNoise(null, this.value)">
+    </div>
+    <button class="btn" onclick="regenerateNoise()">Regenerate</button>
+  </div>
+
+  <div class="canvas-wrap"><canvas id="noiseCanvas" height="350"></canvas></div>
+
+  <div class="stats">
+    <div class="stat"><span class="stat-label">R² Score</span><span class="stat-val" id="noiseR2">—</span></div>
+    <div class="stat"><span class="stat-label">RMSE</span><span class="stat-val" id="noiseRMSE">—</span></div>
+    <div class="stat"><span class="stat-label">MAE</span><span class="stat-val" id="noiseMAE">—</span></div>
+  </div>
+
+  <div style="margin-top:24px">
+    <h4 style="font-family:'DM Mono',monospace;font-size:12px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:16px">R² Interpretation Guide</h4>
+    <div class="metric-bar-wrap"><div class="metric-bar-label"><span>Poor (0–0.3)</span><span style="color:var(--accent3)">Low explanatory power</span></div><div class="metric-bar"><div class="metric-bar-fill" style="width:30%;background:var(--accent3)"></div></div></div>
+    <div class="metric-bar-wrap"><div class="metric-bar-label"><span>Moderate (0.3–0.6)</span><span style="color:var(--accent)">Some relationship</span></div><div class="metric-bar"><div class="metric-bar-fill" style="width:60%;background:var(--accent)"></div></div></div>
+    <div class="metric-bar-wrap"><div class="metric-bar-label"><span>Good (0.6–0.8)</span><span style="color:var(--accent2)">Strong relationship</span></div><div class="metric-bar"><div class="metric-bar-fill" style="width:80%;background:var(--accent2)"></div></div></div>
+    <div class="metric-bar-wrap"><div class="metric-bar-label"><span>Excellent (0.8–1.0)</span><span style="color:#4caf50">Very strong fit</span></div><div class="metric-bar"><div class="metric-bar-fill" style="width:100%;background:#4caf50"></div></div></div>
+  </div>
+</div>
+
+<!-- SECTION 5: ASSUMPTIONS -->
+<div class="section" id="assumptions">
+  <h3>Chapter Five</h3>
+  <h2>Key Assumptions</h2>
+  <p>Linear regression only works well when certain conditions are met. Violating these leads to biased or unreliable estimates.</p>
+
+  <div class="info-grid">
+    <div class="info-card">
+      <span class="tag">Assumption 1</span>
+      <h4>Linearity</h4>
+      <p>The relationship between x and y must be linear. Check with a scatter plot. If the pattern is curved, consider polynomial regression.</p>
+    </div>
+    <div class="info-card">
+      <span class="tag">Assumption 2</span>
+      <h4>Independence</h4>
+      <p>Observations must be independent of each other. Time series data often violates this (autocorrelation). Check with the Durbin-Watson test.</p>
+    </div>
+    <div class="info-card">
+      <span class="tag">Assumption 3</span>
+      <h4>Homoscedasticity</h4>
+      <p>The variance of residuals must be constant across all levels of x. If residuals fan out, this is violated (heteroscedasticity).</p>
+    </div>
+    <div class="info-card">
+      <span class="tag">Assumption 4</span>
+      <h4>Normal Residuals</h4>
+      <p>Residuals should be approximately normally distributed. Check with a Q-Q plot or histogram of residuals.</p>
+    </div>
+    <div class="info-card">
+      <span class="tag">Assumption 5 (Multiple)</span>
+      <h4>No Multicollinearity</h4>
+      <p>In multiple regression, predictors should not be highly correlated with each other. Check with VIF (Variance Inflation Factor).</p>
+    </div>
+    <div class="info-card">
+      <span class="tag">Assumption 6</span>
+      <h4>No Influential Outliers</h4>
+      <p>Extreme outliers can heavily distort the regression line. Use Cook's Distance to identify high-influence points.</p>
+    </div>
+  </div>
+
+  <h3 style="margin-top:40px">Residual Plot Explorer</h3>
+  <p>A good regression produces <strong>randomly scattered residuals</strong> with no pattern. Select a pattern to see what different violations look like.</p>
+
+  <div class="controls">
+    <button class="btn active" onclick="showResidualPattern('good')">Good Fit</button>
+    <button class="btn" onclick="showResidualPattern('hetero')">Heteroscedasticity</button>
+    <button class="btn" onclick="showResidualPattern('nonlinear')">Non-linearity</button>
+    <button class="btn" onclick="showResidualPattern('outlier')">Outlier</button>
+  </div>
+
+  <div class="canvas-wrap">
+    <div class="canvas-label" id="residualLabel">Randomly scattered — assumptions met ✓</div>
+    <canvas id="residualCanvas" height="280"></canvas>
+  </div>
+</div>
+
+<!-- SECTION 6: QUIZ -->
+<div class="section" id="quiz">
+  <h3>Chapter Six</h3>
+  <h2>Test Yourself</h2>
+  <p>Let's see how well you've understood regression. Pick the best answer for each question.</p>
+
+  <div id="quiz-container"></div>
+  <div id="quiz-feedback" class="show"></div>
+  <div id="quiz-result" style="display:none;margin-top:32px"></div>
+</div>
+
+<script>
+// ========================
+// NAV LOGIC
+// ========================
+function showSection(id) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  const idx = ['intro','playground','types','metrics','assumptions','quiz'].indexOf(id);
+  document.querySelectorAll('.nav-btn')[idx].classList.add('active');
+  if (id === 'playground') { setupPlayground(); }
+  if (id === 'types') { drawTypeCharts(); }
+  if (id === 'metrics') { setupNoise(); }
+  if (id === 'assumptions') { showResidualPattern('good'); }
+  if (id === 'quiz') { setupQuiz(); }
+}
+
+// ========================
+// PLAYGROUND
+// ========================
+let pts = [], lineParams = null;
+const canvas = () => document.getElementById('mainCanvas');
+const ctx = () => canvas().getContext('2d');
+
+function setupPlayground() {
+  const c = canvas();
+  c.width = c.offsetWidth;
+  c.height = 400;
+  c.onclick = (e) => {
+    const r = c.getBoundingClientRect();
+    const x = e.clientX - r.left;
+    const y = e.clientY - r.top;
+    pts.push({x, y});
+    if (pts.length >= 2) fitLine();
+    else redraw();
+  };
+  redraw();
+}
+
+function clearPoints() { pts = []; lineParams = null; redraw(); updateStats(); }
+
+function loadPreset(type) {
+  pts = [];
+  const W = canvas().offsetWidth, H = 400;
+  const cx = W/2, cy = H/2;
+
+  if (type === 'linear') {
+    for (let i = 0; i < 20; i++) {
+      const x = 60 + (W-120) * i/19;
+      const y = cy + 1.2*(cx - x) + (Math.random()-0.5)*40;
+      pts.push({x, y});
+    }
+  } else if (type === 'scattered') {
+    for (let i = 0; i < 25; i++) {
+      pts.push({x: 60 + Math.random()*(W-120), y: 60 + Math.random()*(H-120)});
+    }
+  } else if (type === 'outlier') {
+    for (let i = 0; i < 18; i++) {
+      const x = 60 + (W-120) * i/17;
+      const y = cy + (cx-x)*0.8 + (Math.random()-0.5)*30;
+      pts.push({x, y});
+    }
+    pts.push({x: cx + 100, y: 30});
+  }
+  fitLine();
+}
+
+function fitLine() {
+  if (pts.length < 2) { redraw(); return; }
+  const n = pts.length;
+  const mx = pts.reduce((s,p)=>s+p.x,0)/n;
+  const my = pts.reduce((s,p)=>s+p.y,0)/n;
+  let num = 0, den = 0;
+  pts.forEach(p => { num += (p.x-mx)*(p.y-my); den += (p.x-mx)**2; });
+  const slope = den ? num/den : 0;
+  const intercept = my - slope*mx;
+  lineParams = {slope, intercept};
+  redraw();
+  updateStats();
+}
+
+function redraw() {
+  const c = canvas();
+  if (!c || !c.getContext) return;
+  c.width = c.offsetWidth;
+  const ct = c.getContext('2d');
+  const W = c.width, H = 400;
+
+  // Background
+  ct.fillStyle = '#12121a';
+  ct.fillRect(0,0,W,H);
+
+  // Grid
+  ct.strokeStyle = '#2a2a3d';
+  ct.lineWidth = 1;
+  for (let x = 0; x < W; x += 60) { ct.beginPath(); ct.moveTo(x,0); ct.lineTo(x,H); ct.stroke(); }
+  for (let y = 0; y < H; y += 60) { ct.beginPath(); ct.moveTo(0,y); ct.lineTo(W,y); ct.stroke(); }
+
+  // Regression line
+  if (lineParams) {
+    const {slope, intercept} = lineParams;
+    const x0 = 0, x1 = W;
+    ct.beginPath();
+    ct.moveTo(x0, slope*x0+intercept);
+    ct.lineTo(x1, slope*x1+intercept);
+    ct.strokeStyle = '#e8c547';
+    ct.lineWidth = 2.5;
+    ct.setLineDash([]);
+    ct.stroke();
+
+    // Residuals
+    if (document.getElementById('showResiduals')?.checked) {
+      pts.forEach(p => {
+        const yhat = slope*p.x+intercept;
+        ct.beginPath();
+        ct.moveTo(p.x, p.y);
+        ct.lineTo(p.x, yhat);
+        ct.strokeStyle = 'rgba(240,98,146,0.7)';
+        ct.lineWidth = 1.5;
+        ct.setLineDash([3,3]);
+        ct.stroke();
+        ct.setLineDash([]);
+      });
+    }
+  }
+
+  // Points
+  pts.forEach((p, i) => {
+    ct.beginPath();
+    ct.arc(p.x, p.y, 5, 0, Math.PI*2);
+    ct.fillStyle = lineParams ? '#4fc3f7' : '#7878a0';
+    ct.fill();
+    ct.strokeStyle = 'rgba(79,195,247,0.4)';
+    ct.lineWidth = 2;
+    ct.stroke();
+  });
+
+  // Hint
+  if (pts.length === 0) {
+    ct.fillStyle = '#7878a0';
+    ct.font = '14px DM Sans';
+    ct.textAlign = 'center';
+    ct.fillText('Click anywhere to add data points', W/2, H/2);
+  }
+
+  document.getElementById('nPoints').textContent = pts.length;
+}
+
+function updateStats() {
+  if (!lineParams || pts.length < 2) {
+    ['slopeVal','interceptVal','r2Val'].forEach(id => document.getElementById(id).textContent = '—');
+    return;
+  }
+  const {slope, intercept} = lineParams;
+  const n = pts.length;
+  const my = pts.reduce((s,p)=>s+p.y,0)/n;
+  const ssTot = pts.reduce((s,p)=>s+(p.y-my)**2,0);
+  const ssRes = pts.reduce((s,p)=>s+(p.y-(slope*p.x+intercept))**2,0);
+  const r2 = Math.max(0, 1 - ssRes/ssTot);
+  document.getElementById('slopeVal').textContent = slope.toFixed(3);
+  document.getElementById('interceptVal').textContent = intercept.toFixed(1);
+  document.getElementById('r2Val').textContent = r2.toFixed(3);
+}
+
+// ========================
+// TYPE CHARTS
+// ========================
+function drawTypeCharts() {
+  setTimeout(() => {
+    drawSimpleLinear();
+    drawPolynomial();
+    drawLogistic();
+  }, 100);
+}
+
+function setupCanvas(id) {
+  const c = document.getElementById(id);
+  if (!c) return null;
+  c.width = c.offsetWidth || 600;
+  const ct = c.getContext('2d');
+  ct.fillStyle = '#12121a';
+  ct.fillRect(0,0,c.width,c.height);
+  ct.strokeStyle = '#2a2a3d';
+  ct.lineWidth = 1;
+  for (let x=0; x<c.width; x+=60) { ct.beginPath(); ct.moveTo(x,0); ct.lineTo(x,c.height); ct.stroke(); }
+  for (let y=0; y<c.height; y+=60) { ct.beginPath(); ct.moveTo(0,y); ct.lineTo(c.width,y); ct.stroke(); }
+  return { c, ct };
+}
+
+function drawSimpleLinear() {
+  const r = setupCanvas('typeCanvas1'); if(!r) return;
+  const {c, ct} = r; const W=c.width, H=c.height;
+  const pts2 = [];
+  for(let i=0;i<25;i++){
+    const x=60+Math.random()*(W-120);
+    const y = H - (0.6*x + 40 + (Math.random()-0.5)*60);
+    pts2.push({x,y});
+    ct.beginPath(); ct.arc(x,y,4,0,Math.PI*2); ct.fillStyle='#4fc3f7'; ct.fill();
+  }
+  ct.beginPath(); ct.moveTo(60, H-76); ct.lineTo(W-60, H-0.6*(W-60)-40);
+  ct.strokeStyle='#e8c547'; ct.lineWidth=2.5; ct.stroke();
+  ct.fillStyle='#7878a0'; ct.font='12px DM Mono'; ct.fillText('Simple Linear Regression',16,20);
+}
+
+function drawPolynomial() {
+  const r = setupCanvas('typeCanvas3'); if(!r) return;
+  const {c, ct} = r; const W=c.width, H=c.height;
+  for(let i=0;i<30;i++){
+    const x=40+Math.random()*(W-80);
+    const nx=(x-W/2)/(W/3);
+    const y=H/2 - (60*nx*nx - 20) + (Math.random()-0.5)*35;
+    ct.beginPath(); ct.arc(x,y,4,0,Math.PI*2); ct.fillStyle='#f06292'; ct.fill();
+  }
+  ct.beginPath();
+  for(let x=40;x<W-40;x+=2){
+    const nx=(x-W/2)/(W/3);
+    const y=H/2 - (60*nx*nx - 20);
+    x===40 ? ct.moveTo(x,y) : ct.lineTo(x,y);
+  }
+  ct.strokeStyle='#e8c547'; ct.lineWidth=2.5; ct.stroke();
+  ct.fillStyle='#7878a0'; ct.font='12px DM Mono'; ct.fillText('Polynomial Regression (degree 2)',16,20);
+}
+
+function drawLogistic() {
+  const r = setupCanvas('typeCanvas4'); if(!r) return;
+  const {c, ct} = r; const W=c.width, H=c.height;
+  const sig = x => 1/(1+Math.exp(-x));
+  for(let i=0;i<40;i++){
+    const x=40+Math.random()*(W-80);
+    const nx=(x-W/2)/(W/6);
+    const p=sig(nx);
+    const label=Math.random()<p?1:0;
+    const y=label?(H*0.15+Math.random()*30):(H*0.85-Math.random()*30);
+    ct.beginPath(); ct.arc(x,y,5,0,Math.PI*2);
+    ct.fillStyle=label?'#4fc3f7':'#f06292'; ct.fill();
+  }
+  ct.beginPath();
+  for(let x=30;x<W-30;x+=2){
+    const nx=(x-W/2)/(W/6);
+    const y=H - sig(nx)*(H*0.8) - H*0.1;
+    x===30 ? ct.moveTo(x,y) : ct.lineTo(x,y);
+  }
+  ct.strokeStyle='#e8c547'; ct.lineWidth=2.5; ct.stroke();
+  ct.fillStyle='#7878a0'; ct.font='12px DM Mono'; ct.fillText('Logistic Regression (Sigmoid)',16,20);
+  ct.fillStyle='#4fc3f7'; ct.fillRect(W-120,12,10,10);
+  ct.fillStyle='#7878a0'; ct.font='11px DM Mono'; ct.fillText('Class 1',W-105,22);
+  ct.fillStyle='#f06292'; ct.fillRect(W-120,28,10,10);
+  ct.fillStyle='#7878a0'; ct.fillText('Class 0',W-105,38);
+}
+
+function showType(t) {
+  document.querySelectorAll('.type-content').forEach(e => e.classList.remove('active'));
+  document.querySelectorAll('.type-tab').forEach(e => e.classList.remove('active'));
+  document.getElementById('type-'+t).classList.add('active');
+  event.target.classList.add('active');
+  setTimeout(drawTypeCharts, 50);
+}
+
+// ========================
+// NOISE / METRICS
+// ========================
+let noiseData = [], noiseLevel = 0.5, noiseSize = 30;
+
+function setupNoise() { regenerateNoise(); }
+
+function regenerateNoise() {
+  const n = noiseSize;
+  noiseData = [];
+  for (let i = 0; i < n; i++) {
+    const x = i / (n-1);
+    const y = 0.6*x + 0.2 + (Math.random()-0.5)*noiseLevel;
+    noiseData.push({x, y});
+  }
+  drawNoiseCanvas();
+}
+
+function updateNoise(nl, ns) {
+  if (nl !== null && nl !== undefined) { noiseLevel = parseFloat(nl); document.getElementById('noiseLabel').textContent = parseFloat(nl).toFixed(2); }
+  if (ns !== undefined) { noiseSize = parseInt(ns); document.getElementById('sizeLabel').textContent = ns; }
+  regenerateNoise();
+}
+
+function drawNoiseCanvas() {
+  const c = document.getElementById('noiseCanvas'); if(!c) return;
+  c.width = c.offsetWidth || 700; const W = c.width, H = 350;
+  const ct = c.getContext('2d');
+  ct.fillStyle='#12121a'; ct.fillRect(0,0,W,H);
+  ct.strokeStyle='#2a2a3d'; ct.lineWidth=1;
+  for(let x=0;x<W;x+=60){ct.beginPath();ct.moveTo(x,0);ct.lineTo(x,H);ct.stroke();}
+  for(let y=0;y<H;y+=60){ct.beginPath();ct.moveTo(0,y);ct.lineTo(W,y);ct.stroke();}
+
+  const pad=50, iW=W-2*pad, iH=H-2*pad;
+  const sx=x=>pad+x*iW, sy=y=>pad+(1-y)*iH;
+
+  const n=noiseData.length;
+  const mx=noiseData.reduce((s,p)=>s+p.x,0)/n;
+  const my=noiseData.reduce((s,p)=>s+p.y,0)/n;
+  let num=0,den=0;
+  noiseData.forEach(p=>{num+=(p.x-mx)*(p.y-my);den+=(p.x-mx)**2;});
+  const slope=den?num/den:0, intercept=my-slope*mx;
+
+  // Residuals
+  noiseData.forEach(p=>{
+    const yh=slope*p.x+intercept;
+    ct.beginPath(); ct.moveTo(sx(p.x),sy(p.y)); ct.lineTo(sx(p.x),sy(yh));
+    ct.strokeStyle='rgba(240,98,146,0.4)'; ct.lineWidth=1; ct.stroke();
+  });
+
+  // Line
+  ct.beginPath(); ct.moveTo(sx(0),sy(intercept)); ct.lineTo(sx(1),sy(slope+intercept));
+  ct.strokeStyle='#e8c547'; ct.lineWidth=2.5; ct.stroke();
+
+  // Points
+  noiseData.forEach(p=>{
+    ct.beginPath(); ct.arc(sx(p.x),sy(p.y),4,0,Math.PI*2);
+    ct.fillStyle='#4fc3f7'; ct.fill();
+  });
+
+  // Metrics
+  const ssTot=noiseData.reduce((s,p)=>s+(p.y-my)**2,0);
+  const ssRes=noiseData.reduce((s,p)=>s+(p.y-(slope*p.x+intercept))**2,0);
+  const r2=Math.max(0,1-ssRes/ssTot);
+  const rmse=Math.sqrt(ssRes/n);
+  const mae=noiseData.reduce((s,p)=>s+Math.abs(p.y-(slope*p.x+intercept)),0)/n;
+  document.getElementById('noiseR2').textContent=r2.toFixed(3);
+  document.getElementById('noiseRMSE').textContent=rmse.toFixed(3);
+  document.getElementById('noiseMAE').textContent=mae.toFixed(3);
+}
+
+// ========================
+// RESIDUAL PATTERNS
+// ========================
+function showResidualPattern(type) {
+  const c = document.getElementById('residualCanvas'); if(!c) return;
+  c.width = c.offsetWidth || 700; const W = c.width, H = 280;
+  const ct = c.getContext('2d');
+  ct.fillStyle='#12121a'; ct.fillRect(0,0,W,H);
+  const mid=H/2;
+  ct.strokeStyle='#7878a0'; ct.lineWidth=1; ct.setLineDash([6,4]);
+  ct.beginPath(); ct.moveTo(40,mid); ct.lineTo(W-20,mid); ct.stroke(); ct.setLineDash([]);
+
+  const labels = {
+    good: 'Randomly scattered — assumptions met ✓',
+    hetero: 'Heteroscedasticity — variance increases with x (fan-shape)',
+    nonlinear: 'Non-linear pattern — use polynomial regression instead',
+    outlier: 'Outlier detected — high-influence point pulling the model'
+  };
+  document.getElementById('residualLabel').textContent = labels[type];
+
+  const n=60;
+  for(let i=0;i<n;i++){
+    const x=40+(W-60)*i/(n-1);
+    let y;
+    if(type==='good') y=mid+(Math.random()-0.5)*80;
+    else if(type==='hetero'){ const s=((i/n)*120+10); y=mid+(Math.random()-0.5)*s; }
+    else if(type==='nonlinear'){ const t=(i-n/2)/(n/4); y=mid+50*Math.sin(t*1.5)+(Math.random()-0.5)*25; }
+    else y=mid+(Math.random()-0.5)*30;
+
+    ct.beginPath(); ct.arc(x,y,4,0,Math.PI*2);
+    let col='#4fc3f7';
+    if(type==='outlier'&&i===30){y=mid-115; col='#f06292';}
+    ct.fillStyle=col; ct.fill();
+    if(type==='outlier'&&i===30){
+      ct.beginPath();ct.arc(x,y,12,0,Math.PI*2);
+      ct.strokeStyle='rgba(240,98,146,0.5)';ct.lineWidth=2;ct.stroke();
+    }
+  }
+}
+
+// ========================
+// QUIZ
+// ========================
+const questions = [
+  {
+    q: "What does R² = 0 mean for a regression model?",
+    opts: ["The model is perfectly accurate","The model explains no variance in y","The model has infinite error","The slope is zero"],
+    ans: 1,
+    exp: "R² = 0 means the model explains none of the variance in the dependent variable — it's no better than simply predicting the mean."
+  },
+  {
+    q: "In linear regression, what is a residual?",
+    opts: ["The slope of the line","The intercept value","The difference between observed and predicted y","The R² value"],
+    ans: 2,
+    exp: "A residual is the difference between the actual observed value and the value predicted by the regression line."
+  },
+  {
+    q: "Which type of regression is used for binary (yes/no) outcomes?",
+    opts: ["Multiple Linear","Polynomial","Ridge","Logistic"],
+    ans: 3,
+    exp: "Logistic regression models the probability of a binary outcome using the sigmoid (S-shaped) function, outputting values between 0 and 1."
+  },
+  {
+    q: "Ordinary Least Squares minimises which quantity?",
+    opts: ["Sum of residuals","Sum of squared residuals","R² value","The slope coefficient"],
+    ans: 1,
+    exp: "OLS finds the line that minimises the sum of squared residuals (SSR) — squaring ensures positive distances and penalises large errors more."
+  },
+  {
+    q: "What does the slope (β₁) represent in ŷ = β₀ + β₁x?",
+    opts: ["The value of y when x=0","The correlation coefficient","The change in ŷ for a one-unit increase in x","The total variance explained"],
+    ans: 2,
+    exp: "The slope β₁ is the expected change in the predicted outcome ŷ for each one-unit increase in the predictor x."
+  },
+  {
+    q: "Which regularisation method can set coefficients exactly to zero?",
+    opts: ["Ridge (L2)","Simple Linear","Lasso (L1)","Polynomial"],
+    ans: 2,
+    exp: "Lasso (L1 regularisation) adds an absolute-value penalty that can shrink coefficients all the way to zero, effectively removing features."
+  }
+];
+
+let answered = [];
+function setupQuiz() {
+  answered = new Array(questions.length).fill(null);
+  const cont = document.getElementById('quiz-container');
+  cont.innerHTML = '';
+  questions.forEach((q, qi) => {
+    const block = document.createElement('div');
+    block.style.cssText = 'margin-bottom:40px';
+    block.innerHTML = `
+      <p style="color:var(--text);font-size:17px;margin-bottom:16px;max-width:none">
+        <span style="font-family:'DM Mono',monospace;color:var(--accent);font-size:13px">Q${qi+1}. </span>${q.q}
+      </p>
+      ${q.opts.map((o,oi)=>`
+        <div class="quiz-option" id="opt-${qi}-${oi}" onclick="answer(${qi},${oi})">
+          <span class="quiz-icon" id="icon-${qi}-${oi}">○</span> ${o}
+        </div>`).join('')}
+      <div id="exp-${qi}" style="display:none;font-family:'DM Mono',monospace;font-size:12px;color:#4caf50;background:rgba(76,175,80,0.08);border:1px solid rgba(76,175,80,0.3);padding:12px 16px;border-radius:4px;margin-top:8px"></div>
+    `;
+    cont.appendChild(block);
+  });
+  document.getElementById('quiz-result').style.display='none';
+  document.getElementById('quiz-feedback').className='show';
+  document.getElementById('quiz-feedback').innerHTML='<span style="font-family:\'DM Mono\',monospace;font-size:12px;color:var(--muted)">Answer all questions to see your score.</span>';
+}
+
+function answer(qi, oi) {
+  if (answered[qi] !== null) return;
+  answered[qi] = oi;
+  const correct = questions[qi].ans;
+  for(let i=0;i<questions[qi].opts.length;i++){
+    const el = document.getElementById(`opt-${qi}-${i}`);
+    const ic = document.getElementById(`icon-${qi}-${i}`);
+    if(i===correct){el.classList.add('correct');ic.textContent='✓';}
+    else if(i===oi&&oi!==correct){el.classList.add('wrong');ic.textContent='✗';}
+  }
+  document.getElementById(`exp-${qi}`).style.display='block';
+  document.getElementById(`exp-${qi}`).textContent=questions[qi].exp;
+
+  if(answered.every(a=>a!==null)){
+    const score=answered.filter((a,i)=>a===questions[i].ans).length;
+    const pct=Math.round(score/questions.length*100);
+    const res=document.getElementById('quiz-result');
+    res.style.display='block';
+    res.innerHTML=`
+      <div style="background:var(--surface);border:1px solid var(--accent);border-radius:4px;padding:32px;text-align:center">
+        <div style="font-family:'Playfair Display',serif;font-size:56px;color:var(--accent)">${pct}%</div>
+        <div style="font-family:'DM Mono',monospace;font-size:13px;color:var(--muted);margin:8px 0">${score} / ${questions.length} correct</div>
+        <p style="margin:16px auto;max-width:400px;text-align:center">${pct===100?'Perfect score! You have a strong grasp of regression concepts.':pct>=66?'Good work! Review the sections you missed to solidify your understanding.':'Keep exploring! Revisit the earlier sections and try again.'}</p>
+        <button class="btn primary" onclick="setupQuiz()">Try Again</button>
+      </div>`;
+    document.getElementById('quiz-feedback').innerHTML='';
+  }
+}
+
+// Init
+window.addEventListener('load', () => {
+  setupPlayground();
+  window.addEventListener('resize', () => {
+    if(document.getElementById('playground').classList.contains('active')) redraw();
+  });
+});
+</script>
+</body>
+</html>

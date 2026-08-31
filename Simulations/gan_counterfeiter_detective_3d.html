@@ -1,0 +1,410 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+h2.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
+body{background:transparent;font-family:var(--font-sans);color:var(--color-text-primary)}
+#wrap{padding:1rem 0}
+canvas{display:block;width:100%;height:420px;border-radius:var(--border-radius-lg);border:0.5px solid var(--color-border-tertiary);cursor:grab}
+canvas:active{cursor:grabbing}
+.hint{font-size:11px;color:var(--color-text-tertiary);margin-top:5px;margin-bottom:12px}
+.modes{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.btn{font-size:12px;padding:6px 14px;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);background:transparent;color:var(--color-text-secondary);cursor:pointer;transition:all .2s}
+.btn:hover{background:var(--color-background-secondary)}
+.btn.a-purple{background:#EEEDFE;color:#3C3489;border-color:#7F77DD}
+.btn.a-teal{background:#E1F5EE;color:#085041;border-color:#1D9E75}
+.btn.a-amber{background:#FAEEDA;color:#633806;border-color:#EF9F27}
+.btn.a-gray{background:var(--color-background-secondary);color:var(--color-text-primary);border-color:var(--color-border-primary)}
+.tt{position:absolute;background:var(--color-background-primary);border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);font-size:12px;padding:10px 13px;max-width:220px;line-height:1.6;z-index:99;pointer-events:none;display:none}
+.tt strong{display:block;margin-bottom:3px;font-size:13px}
+.stepper{margin-bottom:16px}
+.sdots{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--color-border-secondary);cursor:pointer;transition:background .2s;flex-shrink:0}
+.dot.on{background:#7F77DD}
+.spanel{background:var(--color-background-secondary);border-radius:var(--border-radius-lg);padding:14px 16px}
+.spanel h3{font-size:13px;font-weight:500;margin-bottom:5px}
+.spanel p{font-size:12px;line-height:1.65;color:var(--color-text-secondary)}
+.snav{display:flex;gap:8px;margin-top:10px;align-items:center}
+.sprog{font-size:11px;color:var(--color-text-tertiary);margin-left:auto}
+.igrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:10px;margin-bottom:16px}
+.ic{border-radius:var(--border-radius-lg);padding:13px 14px;border-left:3px solid}
+.ic h3{font-size:10px;font-weight:500;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px}
+.ic p{font-size:12px;line-height:1.55}
+.ic.purple{background:#EEEDFE;border-color:#7F77DD} .ic.purple h3{color:#534AB7} .ic.purple p{color:#3C3489}
+.ic.teal{background:#E1F5EE;border-color:#1D9E75}   .ic.teal h3{color:#0F6E56}   .ic.teal p{color:#085041}
+.ic.amber{background:#FAEEDA;border-color:#EF9F27}  .ic.amber h3{color:#854F0B}  .ic.amber p{color:#633806}
+.ic.coral{background:#FAECE7;border-color:#D85A30}  .ic.coral h3{color:#993C1D}  .ic.coral p{color:#712B13}
+.sec{font-size:10px;letter-spacing:2px;color:var(--color-text-tertiary);margin-bottom:7px;margin-top:18px;text-transform:uppercase}
+.verdict{display:flex;align-items:center;gap:10px;background:var(--color-background-secondary);border-radius:var(--border-radius-lg);padding:12px 16px;margin-bottom:16px;font-size:13px}
+.vbadge{padding:4px 12px;border-radius:var(--border-radius-md);font-size:11px;font-weight:500}
+.meters{display:flex;flex-direction:column;gap:8px;margin-bottom:4px}
+.mrow{display:flex;align-items:center;gap:10px}
+.mlbl{font-size:11px;color:var(--color-text-secondary);width:160px;flex-shrink:0}
+.mtrack{flex:1;height:5px;background:var(--color-border-tertiary);border-radius:3px;overflow:hidden}
+.mfill{height:100%;border-radius:3px;width:0;transition:width 1.4s ease}
+.mpct{font-size:11px;width:34px;text-align:right}
+</style>
+
+<div id="wrap">
+<h2 class="sr-only">Interactive 3D GAN explainer using a counterfeiter vs police officer analogy. The counterfeiter is the Generator and the police officer is the Discriminator.</h2>
+
+<div id="tt" class="tt"></div>
+<canvas id="c"></canvas>
+<p class="hint">Drag to rotate · scroll to zoom · click any character or object for details</p>
+
+<div class="modes">
+  <button class="btn a-gray" data-mode="idle">Overview</button>
+  <button class="btn" data-mode="forge">Counterfeiter prints</button>
+  <button class="btn" data-mode="inspect">Officer inspects</button>
+  <button class="btn" data-mode="caught">Caught! G learns</button>
+  <button class="btn" data-mode="fooled">Fooled! D learns</button>
+  <button class="btn" data-mode="reset">Reset view</button>
+</div>
+
+<div class="sec">The adversarial story — step by step</div>
+<div class="stepper">
+  <div class="sdots" id="dots"></div>
+  <div class="spanel">
+    <h3 id="stitle"></h3>
+    <p id="sbody"></p>
+  </div>
+  <div class="snav">
+    <button class="btn" onclick="stepNav(-1)">Prev</button>
+    <button class="btn" onclick="stepNav(1)">Next</button>
+    <span class="sprog" id="sprog"></span>
+  </div>
+</div>
+
+<div class="sec">Live verdict tracker</div>
+<div class="verdict">
+  <span style="font-size:13px;color:var(--color-text-secondary)">Current round:</span>
+  <span class="vbadge" id="vbadge" style="background:#EEEDFE;color:#3C3489">Early training — obvious fakes</span>
+  <button class="btn" style="margin-left:auto;font-size:11px" onclick="cycleVerdict()">Next epoch</button>
+</div>
+
+<div class="sec">Character analysis</div>
+<div class="igrid">
+  <div class="ic purple">
+    <h3>Counterfeiter (Generator G)</h3>
+    <p>Starts with just random noise — like a rookie forger with no skills. Learns from every rejection to make fakes more convincing.</p>
+  </div>
+  <div class="ic teal">
+    <h3>Police officer (Discriminator D)</h3>
+    <p>Trained detective who compares suspected fakes against known genuine notes. Gets sharper with every case. But so does the forger.</p>
+  </div>
+  <div class="ic amber">
+    <h3>Real banknotes (Training data)</h3>
+    <p>The ground truth. Real notes from the vault — the officer studies these to learn what "real" looks like at every microscopic detail.</p>
+  </div>
+  <div class="ic coral">
+    <h3>Nash equilibrium</h3>
+    <p>The forger becomes so skilled the officer can only guess. D outputs 50/50. The game is over — G has mastered reality.</p>
+  </div>
+</div>
+
+<div class="sec">Training dynamics</div>
+<div class="meters">
+  <div class="mrow"><div class="mlbl">Forger skill (G quality)</div><div class="mtrack"><div class="mfill" style="background:#7F77DD" data-pct="74"></div></div><div class="mpct" style="color:#7F77DD">74%</div></div>
+  <div class="mrow"><div class="mlbl">Officer accuracy (D)</div><div class="mtrack"><div class="mfill" style="background:#1D9E75" data-pct="61"></div></div><div class="mpct" style="color:#1D9E75">61%</div></div>
+  <div class="mrow"><div class="mlbl">Fake believability</div><div class="mtrack"><div class="mfill" style="background:#EF9F27" data-pct="68"></div></div><div class="mpct" style="color:#EF9F27">68%</div></div>
+  <div class="mrow"><div class="mlbl">Detection rate</div><div class="mtrack"><div class="mfill" style="background:#1D9E75" data-pct="55"></div></div><div class="mpct" style="color:#1D9E75">55%</div></div>
+  <div class="mrow"><div class="mlbl">Convergence to equilibrium</div><div class="mtrack"><div class="mfill" style="background:#7F77DD" data-pct="43"></div></div><div class="mpct" style="color:#7F77DD">43%</div></div>
+</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const STEPS=[
+  {t:'Noise in — rookie forger begins',b:'The counterfeiter starts with nothing but random noise: a blank slate with no skill. Like a forger who\'s never held a real note. In GAN terms: z ~ N(0,I) is sampled and fed into Generator G.'},
+  {t:'First fakes roll off the press',b:'G(z) produces early forgeries — blurry, wrong colours, obvious errors. Like a forger\'s first attempt: you\'d never accept it. The officer laughs and stamps FAKE immediately.'},
+  {t:'Officer studies the real vault notes',b:'Before each inspection round the officer reviews genuine banknotes from the vault — the training data x. She memorises every watermark, every thread. D learns what P(real)=1 looks like.'},
+  {t:'Officer inspects both real and fake',b:'The officer receives a mixed pile: some real notes, some forgeries. For each note she outputs a probability: "70% chance this is real." D(x) should be near 1, D(G(z)) near 0.'},
+  {t:'Officer catches the fake — G gets feedback',b:'CAUGHT. The officer flags the forgery. This rejection is the gradient signal that flows back to the forger. G\'s loss = how convincingly it fooled D. Now G updates its technique.'},
+  {t:'Forger improves — fakes get sharper',b:'With each round the counterfeiter refines the ink, the paper texture, the watermark. G\'s generated notes look more convincing. D has to work harder. The adversarial arms race escalates.'},
+  {t:'Forger finally fools the officer',b:'FOOLED. The officer stamps REAL on a fake note. This feedback updates D — she sharpens her eye. But G also learns it worked. Both players get smarter every round.'},
+  {t:'Nash equilibrium — the perfect forgery',b:'After thousands of rounds: the forger\'s notes are indistinguishable from real ones. The officer can only guess — D(G(z)) ≈ 0.5. Training converges. G has learned the full data distribution.'},
+];
+let si=0;
+const dotsEl=document.getElementById('dots');
+STEPS.forEach((_,i)=>{const d=document.createElement('div');d.className='dot'+(i===0?' on':'');d.onclick=()=>goStep(i);dotsEl.appendChild(d);});
+function goStep(i){si=i;document.getElementById('stitle').textContent=STEPS[i].t;document.getElementById('sbody').textContent=STEPS[i].b;document.querySelectorAll('.dot').forEach((d,j)=>d.classList.toggle('on',j===i));document.getElementById('sprog').textContent=(i+1)+' / '+STEPS.length;}
+function stepNav(dir){goStep((si+dir+STEPS.length)%STEPS.length);}
+goStep(0);
+
+const VERDICTS=[
+  {t:'Early training — obvious fakes',bg:'#EEEDFE',c:'#3C3489'},
+  {t:'Epoch 50 — forger improving fast',bg:'#FAEEDA',c:'#633806'},
+  {t:'Epoch 200 — officer struggling',bg:'#FAECE7',c:'#712B13'},
+  {t:'Epoch 500 — near-perfect fakes',bg:'#E1F5EE',c:'#085041'},
+  {t:'Converged — D outputs 50/50',bg:'#EAF3DE',c:'#27500A'},
+];
+let vi=0;
+function cycleVerdict(){vi=(vi+1)%VERDICTS.length;const v=VERDICTS[vi];const b=document.getElementById('vbadge');b.textContent=v.t;b.style.background=v.bg;b.style.color=v.c;}
+
+setTimeout(()=>document.querySelectorAll('.mfill').forEach((el,i)=>setTimeout(()=>el.style.width=el.dataset.pct+'%',i*140)),400);
+
+const canvas=document.getElementById('c');
+const isDark=matchMedia('(prefers-color-scheme:dark)').matches;
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:false});
+renderer.setClearColor(isDark?0x0a0f1a:0xedf0f5,1);
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(48,1,0.1,200);
+camera.position.set(0,4,18);
+
+function resize(){const w=canvas.clientWidth,h=canvas.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();}
+resize();window.addEventListener('resize',resize);
+
+scene.add(new THREE.AmbientLight(0xffffff,isDark?0.45:0.8));
+const dl=new THREE.DirectionalLight(0xffffff,isDark?1.0:0.7);dl.position.set(5,10,6);scene.add(dl);
+const ptPurple=new THREE.PointLight(0x7F77DD,0,14);ptPurple.position.set(-6,2,0);scene.add(ptPurple);
+const ptTeal=new THREE.PointLight(0x1D9E75,0,14);ptTeal.position.set(6,2,0);scene.add(ptTeal);
+const ptAmber=new THREE.PointLight(0xEF9F27,0,10);ptAmber.position.set(0,3,0);scene.add(ptAmber);
+const ptRed=new THREE.PointLight(0xE24B4A,0,8);ptRed.position.set(0,2,2);scene.add(ptRed);
+const ptGreen=new THREE.PointLight(0x22cc66,0,8);ptGreen.position.set(0,2,-2);scene.add(ptGreen);
+
+function mat(c,em=0x000000,s=70){return new THREE.MeshPhongMaterial({color:c,emissive:em,shininess:s});}
+function wmat(c){return new THREE.MeshPhongMaterial({color:c,wireframe:true,transparent:true,opacity:0.35});}
+
+const isDarkN=isDark;
+const PURPLE=isDarkN?0x7F77DD:0x534AB7;
+const TEAL=isDarkN?0x1D9E75:0x0F6E56;
+const AMBER=isDarkN?0xEF9F27:0xBA7517;
+const CORAL=isDarkN?0xD85A30:0x993C1D;
+const GRAY=isDarkN?0x888780:0x5F5E5A;
+const GOLD=isDarkN?0xFFD700:0xB8860B;
+const GREEN=isDarkN?0x22cc66:0x1a8844;
+
+function mkMesh(geo,m){const mesh=new THREE.Mesh(geo,m);scene.add(mesh);return mesh;}
+
+function buildCounterfeiter(x,y,z){
+  const g=new THREE.Group();g.position.set(x,y,z);
+
+  const body=new THREE.Mesh(new THREE.CylinderGeometry(0.45,0.5,1.4,14),mat(PURPLE,isDarkN?0x110822:0x000000));
+  body.position.set(0,0.7,0);g.add(body);
+
+  const head=new THREE.Mesh(new THREE.SphereGeometry(0.38,20,16),mat(isDarkN?0xd4956a:0xc47a4a));
+  head.position.set(0,1.75,0);g.add(head);
+
+  const hat=new THREE.Mesh(new THREE.CylinderGeometry(0.22,0.38,0.35,14),mat(0x222222));
+  hat.position.set(0,2.06,0);g.add(hat);
+  const brim=new THREE.Mesh(new THREE.CylinderGeometry(0.5,0.5,0.06,14),mat(0x111111));
+  brim.position.set(0,1.9,0);g.add(brim);
+
+  const larm=new THREE.Mesh(new THREE.CylinderGeometry(0.1,0.1,0.8,8),mat(PURPLE));
+  larm.rotation.z=Math.PI/4;larm.position.set(-0.7,1.0,0);g.add(larm);
+  const rarm=new THREE.Mesh(new THREE.CylinderGeometry(0.1,0.1,0.8,8),mat(PURPLE));
+  rarm.rotation.z=-Math.PI/3;rarm.position.set(0.65,0.95,0);g.add(rarm);
+
+  const press=new THREE.Mesh(new THREE.BoxGeometry(0.9,0.18,0.55),mat(0x8B4513));
+  press.position.set(0.9,0.55,0);g.add(press);
+
+  const note=new THREE.Mesh(new THREE.BoxGeometry(0.55,0.02,0.35),mat(CORAL));
+  note.position.set(0.9,0.67,0);g.add(note);
+
+  g.userData={lbl:'Counterfeiter (Generator G)',desc:'The forger starts from pure noise and learns to produce fake banknotes so convincing the officer can\'t tell them apart. Each rejection teaches G to improve.'};
+  scene.add(g);return g;
+}
+
+function buildOfficer(x,y,z){
+  const g=new THREE.Group();g.position.set(x,y,z);
+
+  const body=new THREE.Mesh(new THREE.CylinderGeometry(0.45,0.5,1.4,14),mat(TEAL,isDarkN?0x002211:0x000000));
+  body.position.set(0,0.7,0);g.add(body);
+  const badge=new THREE.Mesh(new THREE.SphereGeometry(0.1,8,8),mat(GOLD));
+  badge.position.set(0.3,1.1,0.45);g.add(badge);
+
+  const head=new THREE.Mesh(new THREE.SphereGeometry(0.38,20,16),mat(isDarkN?0xc4895a:0xb07040));
+  head.position.set(0,1.75,0);g.add(head);
+  const cap=new THREE.Mesh(new THREE.CylinderGeometry(0.42,0.42,0.22,14),mat(TEAL));
+  cap.position.set(0,2.08,0);g.add(cap);
+  const peak=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.06,0.25),mat(0x063a2a));
+  peak.position.set(0,1.98,0.3);g.add(peak);
+
+  const larm=new THREE.Mesh(new THREE.CylinderGeometry(0.1,0.1,0.85,8),mat(TEAL));
+  larm.rotation.z=Math.PI/5;larm.position.set(-0.68,1.0,0);g.add(larm);
+  const rarm=new THREE.Mesh(new THREE.CylinderGeometry(0.1,0.1,0.85,8),mat(TEAL));
+  rarm.rotation.z=-Math.PI/4;rarm.position.set(0.68,0.95,0);g.add(rarm);
+
+  const magn=new THREE.Mesh(new THREE.TorusGeometry(0.2,0.06,8,20),mat(GOLD));
+  magn.position.set(0.9,0.8,0);g.add(magn);
+  const handle=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,0.3,8),mat(GOLD));
+  handle.rotation.z=Math.PI/4;handle.position.set(1.07,0.62,0);g.add(handle);
+
+  g.userData={lbl:'Police officer (Discriminator D)',desc:'The detective studies real banknotes from the vault and uses a magnifying glass to catch fakes. Every forgery she examines sharpens her eye. D(x) → 1 for real, D(G(z)) → 0 for fake.'};
+  scene.add(g);return g;
+}
+
+function buildVault(x,y,z){
+  const g=new THREE.Group();g.position.set(x,y,z);
+  const base=new THREE.Mesh(new THREE.BoxGeometry(1.6,1.2,1.0),mat(0x888780));
+  base.position.set(0,0.6,0);g.add(base);
+  const door=new THREE.Mesh(new THREE.BoxGeometry(0.7,0.85,0.12),mat(AMBER));
+  door.position.set(0,0.63,0.56);g.add(door);
+  const dial=new THREE.Mesh(new THREE.CylinderGeometry(0.18,0.18,0.08,16),mat(GOLD));
+  dial.rotation.x=Math.PI/2;dial.position.set(0,0.65,0.63);g.add(dial);
+  const handle2=new THREE.Mesh(new THREE.TorusGeometry(0.08,0.025,6,12),mat(GOLD));
+  handle2.position.set(0.25,0.63,0.63);g.add(handle2);
+  const note1=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.02,0.32),mat(0x228B22));
+  note1.position.set(0,1.25,0);note1.rotation.x=0.1;g.add(note1);
+  const note2=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.02,0.32),mat(0x006400));
+  note2.position.set(0.05,1.28,0.05);note2.rotation.x=-0.1;g.add(note2);
+  g.userData={lbl:'Vault of real banknotes (Training data x)',desc:'Real genuine banknotes from the central bank. The officer studies these as ground truth — labelled P(real)=1. The forger has never seen inside the vault directly.'};
+  scene.add(g);return g;
+}
+
+function buildNoiseOrb(x,y,z){
+  const g=new THREE.Group();g.position.set(x,y,z);
+  const core=new THREE.Mesh(new THREE.IcosahedronGeometry(0.55,1),mat(GRAY));
+  g.add(core);
+  const shell=new THREE.Mesh(new THREE.IcosahedronGeometry(0.75,1),wmat(GRAY));
+  g.add(shell);
+  g.userData={lbl:'Random noise z (latent space)',desc:'A random vector sampled from a Gaussian distribution — the seed of creativity. The generator maps this noise into a fake banknote. No two samples of z produce the same output.'};
+  scene.add(g);return g;
+}
+
+function buildFakeNote(x,y,z){
+  const g=new THREE.Group();g.position.set(x,y,z);
+  const note=new THREE.Mesh(new THREE.BoxGeometry(1.1,0.03,0.7),mat(CORAL));
+  g.add(note);
+  const stripe=new THREE.Mesh(new THREE.BoxGeometry(0.9,0.04,0.08),mat(0xff6644));
+  stripe.position.set(0,0.035,0);g.add(stripe);
+  const stamp=new THREE.Mesh(new THREE.CylinderGeometry(0.14,0.14,0.05,12),mat(0xE24B4A));
+  stamp.position.set(0.3,0.04,0.2);g.add(stamp);
+  g.userData={lbl:'Fake banknote G(z)',desc:'The forger\'s output. Early fakes are obviously wrong. Later fakes become near-perfect copies. The officer must judge each one: real or fake? Her verdict trains both players.'};
+  scene.add(g);return g;
+}
+
+function buildVerdict(x,y,z){
+  const g=new THREE.Group();g.position.set(x,y,z);
+  const base=new THREE.Mesh(new THREE.BoxGeometry(0.8,0.06,0.5),mat(0x555555));
+  g.add(base);
+  const stamp2=new THREE.Mesh(new THREE.CylinderGeometry(0.22,0.22,0.35,16),mat(isDarkN?0x1D9E75:0x0F6E56));
+  stamp2.position.set(0,0.2,0);g.add(stamp2);
+  const txt=new THREE.Mesh(new THREE.BoxGeometry(0.26,0.04,0.12),mat(0xffffff));
+  txt.position.set(0,0.39,0);g.add(txt);
+  g.userData={lbl:'Discriminator verdict D(x)',desc:'The officer\'s probability output. D(real note) → 1.0. D(fake) → 0.0 ideally. At Nash equilibrium, D(G(z)) → 0.5 — she genuinely can\'t tell. The adversarial game is over.'};
+  scene.add(g);return g;
+}
+
+const grpCF=buildCounterfeiter(-6,0,0);
+const grpOF=buildOfficer(6,0,0);
+const grpVault=buildVault(0,0,-4.5);
+const grpNoise=buildNoiseOrb(-9.5,1,0);
+const grpFake=buildFakeNote(0,1.2,0);
+const grpVerdict=buildVerdict(0,-1.5,0);
+
+const allClickable=[grpCF,grpOF,grpVault,grpNoise,grpFake,grpVerdict];
+const allMeshes=[];
+allClickable.forEach(g=>g.traverse(o=>{if(o.isMesh)allMeshes.push(o);}));
+
+function edgeGroup(a,b,color,opacity=0.5){
+  const pts=[a,b];
+  const geo=new THREE.BufferGeometry().setFromPoints(pts.map(p=>new THREE.Vector3(...p)));
+  const m=new THREE.LineBasicMaterial({color,transparent:true,opacity});
+  const l=new THREE.Line(geo,m);scene.add(l);return {l,m};
+}
+
+const eNoise=edgeGroup([-9.5,1,0],[-6,1,0],0x888780);
+const eForg= edgeGroup([-6,0.7,0],[0,1.2,0],0xD85A30);
+const eReal= edgeGroup([0,0,-4.5],[6,0.7,0],0x22cc66);
+const eFake= edgeGroup([0,1.2,0],[6,0.7,0],0xD85A30);
+const eVerdict=edgeGroup([6,0,-0],[-6,-0.5,0],0x7F77DD);
+
+const pN=160;const pBuf=new Float32Array(pN*3);
+for(let i=0;i<pN;i++){pBuf[i*3]=(Math.random()-.5)*22;pBuf[i*3+1]=(Math.random()-.5)*9;pBuf[i*3+2]=(Math.random()-.5)*10;}
+const pGeo=new THREE.BufferGeometry();pGeo.setAttribute('position',new THREE.BufferAttribute(pBuf,3));
+scene.add(new THREE.Points(pGeo,new THREE.PointsMaterial({color:isDark?0x334466:0xaabbcc,size:0.05,transparent:true,opacity:0.2})));
+
+let drag=false,theta=0,phi=0.18,radius=18,tTheta=0,tPhi=0.18,px=0,py=0;
+canvas.addEventListener('mousedown',e=>{drag=true;px=e.clientX;py=e.clientY;});
+canvas.addEventListener('touchstart',e=>{drag=true;px=e.touches[0].clientX;py=e.touches[0].clientY;},{passive:true});
+window.addEventListener('mouseup',()=>drag=false);
+window.addEventListener('touchend',()=>drag=false);
+window.addEventListener('mousemove',e=>{if(!drag)return;tTheta-=(e.clientX-px)*0.01;tPhi=Math.max(-0.8,Math.min(0.8,tPhi+(e.clientY-py)*0.007));px=e.clientX;py=e.clientY;});
+window.addEventListener('touchmove',e=>{if(!drag)return;tTheta-=(e.touches[0].clientX-px)*0.01;tPhi=Math.max(-0.8,Math.min(0.8,tPhi+(e.touches[0].clientY-py)*0.007));px=e.touches[0].clientX;py=e.touches[0].clientY;},{passive:true});
+canvas.addEventListener('wheel',e=>{radius=Math.max(8,Math.min(24,radius+e.deltaY*0.025));},{passive:true});
+
+const ray=new THREE.Raycaster(),m2v=new THREE.Vector2(),ttEl=document.getElementById('tt');
+let ttTO;
+canvas.addEventListener('click',e=>{
+  const r=canvas.getBoundingClientRect();
+  m2v.x=((e.clientX-r.left)/r.width)*2-1;m2v.y=-((e.clientY-r.top)/r.height)*2+1;
+  ray.setFromCamera(m2v,camera);
+  const hits=ray.intersectObjects(allMeshes,false);
+  if(!hits.length)return;
+  let grp=hits[0].object;
+  while(grp.parent&&!grp.userData.lbl)grp=grp.parent;
+  if(!grp.userData.lbl)return;
+  ttEl.innerHTML=`<strong>${grp.userData.lbl}</strong>${grp.userData.desc}`;
+  ttEl.style.display='block';
+  const cr=canvas.getBoundingClientRect();
+  ttEl.style.left=Math.min(e.clientX-cr.left+14,cr.width-230)+'px';
+  ttEl.style.top=Math.max(e.clientY-cr.top-60,10)+'px';
+  clearTimeout(ttTO);ttTO=setTimeout(()=>ttEl.style.display='none',4500);
+});
+
+let mode='idle';
+document.querySelectorAll('.btn[data-mode]').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    const m=btn.dataset.mode;
+    if(m==='reset'){tTheta=0;tPhi=0.18;radius=18;return;}
+    mode=m;
+    document.querySelectorAll('.btn[data-mode]').forEach(b=>{
+      b.className='btn';
+      if(b.dataset.mode==='idle')b.className='btn a-gray';
+    });
+    if(m==='idle')btn.className='btn a-gray';
+    else if(m==='forge')btn.className='btn a-purple';
+    else if(m==='inspect')btn.className='btn a-teal';
+    else if(m==='caught')btn.className='btn a-amber';
+    else if(m==='fooled')btn.className='btn a-teal';
+    ptPurple.intensity=0;ptTeal.intensity=0;ptAmber.intensity=0;ptRed.intensity=0;ptGreen.intensity=0;
+    if(m==='forge'){ptPurple.intensity=2.5;}
+    else if(m==='inspect'){ptTeal.intensity=2.5;}
+    else if(m==='caught'){ptRed.intensity=2.5;ptAmber.intensity=1;}
+    else if(m==='fooled'){ptGreen.intensity=2.5;ptTeal.intensity=0.8;}
+  });
+});
+
+const clk=new THREE.Clock();
+(function loop(){
+  requestAnimationFrame(loop);
+  const t=clk.getElapsedTime();
+  if(!drag)tTheta+=0.0022;
+  theta+=(tTheta-theta)*0.07;phi+=(tPhi-phi)*0.07;
+  camera.position.x=radius*Math.cos(phi)*Math.sin(theta);
+  camera.position.y=radius*Math.sin(phi);
+  camera.position.z=radius*Math.cos(phi)*Math.cos(theta);
+  camera.lookAt(0,0,0);
+
+  grpCF.rotation.y=Math.sin(t*0.6)*0.12;
+  grpOF.rotation.y=Math.sin(t*0.5+1)*0.1;
+  grpNoise.children[0].rotation.x=t*0.8;grpNoise.children[0].rotation.z=t*0.5;
+  if(grpNoise.children[1]){grpNoise.children[1].rotation.x=t*-0.6;grpNoise.children[1].rotation.y=t*0.7;}
+  grpFake.rotation.y=t*0.6;
+  grpFake.position.y=1.2+Math.sin(t*1.8)*0.15;
+  grpVerdict.children[1].rotation.y=t*1.5;
+  grpVault.rotation.y=Math.sin(t*0.3)*0.05;
+
+  if(mode==='forge'){
+    grpCF.rotation.y=Math.sin(t*2)*0.3;
+    eForg.m.opacity=0.4+Math.abs(Math.sin(t*3))*0.55;
+    eNoise.m.opacity=0.4+Math.abs(Math.sin(t*2.5))*0.5;
+    ptPurple.intensity=1.8+Math.sin(t*5)*0.6;
+  } else if(mode==='inspect'){
+    grpOF.rotation.y=Math.sin(t*2)*0.3;
+    eFake.m.opacity=0.4+Math.abs(Math.sin(t*3))*0.55;
+    eReal.m.opacity=0.4+Math.abs(Math.sin(t*2.5))*0.5;
+    ptTeal.intensity=1.8+Math.sin(t*5)*0.6;
+  } else if(mode==='caught'){
+    eVerdict.m.opacity=0.5+Math.abs(Math.sin(t*4))*0.5;
+    ptRed.intensity=1.5+Math.sin(t*7)*0.8;
+  } else if(mode==='fooled'){
+    eVerdict.m.opacity=0.5+Math.abs(Math.sin(t*4))*0.5;
+    ptGreen.intensity=1.5+Math.sin(t*6)*0.7;
+    ptTeal.intensity=0.5+Math.sin(t*5)*0.4;
+  }
+
+  renderer.render(scene,camera);
+})();
+</script>

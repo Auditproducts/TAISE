@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gradient Descent — 3D Visualiser</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:ital,opsz,wght@0,9..144,300;1,9..144,300&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #0a0b0e;
+    --surface:   #111318;
+    --border:    rgba(255,255,255,0.07);
+    --border2:   rgba(255,255,255,0.14);
+    --text:      #e8e5df;
+    --muted:     #7a776f;
+    --accent:    #F59B38;
+    --accent2:   #3B8BD4;
+    --red:       #E24B4A;
+    --green:     #63992a;
+    --mono:      'DM Mono', monospace;
+    --serif:     'Fraunces', Georgia, serif;
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.6;
+  }
+
+  /* ── Layout ── */
+  .page { display: grid; grid-template-rows: auto 1fr auto; min-height: 100vh; }
+
+  header {
+    padding: 28px 40px 20px;
+    border-bottom: 0.5px solid var(--border);
+    display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+  }
+
+  .header-left h1 {
+    font-family: var(--serif);
+    font-weight: 300;
+    font-size: 26px;
+    letter-spacing: -0.5px;
+    color: var(--text);
+  }
+  .header-left h1 em { font-style: italic; color: var(--accent); }
+
+  .header-sub {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 3px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .main { display: grid; grid-template-columns: 1fr 280px; overflow: hidden; }
+
+  /* ── Canvas ── */
+  #canvas-wrap {
+    position: relative;
+    background: var(--bg);
+    border-right: 0.5px solid var(--border);
+    overflow: hidden;
+  }
+  #canvas3d { display: block; width: 100%; height: 100%; min-height: 520px; cursor: grab; }
+  #canvas3d:active { cursor: grabbing; }
+
+  .canvas-overlay {
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    pointer-events: none;
+  }
+
+  /* loss badge */
+  .loss-badge {
+    position: absolute; top: 20px; left: 20px;
+    background: rgba(10,11,14,0.85);
+    border: 0.5px solid var(--border2);
+    border-radius: 6px;
+    padding: 10px 14px;
+    backdrop-filter: blur(6px);
+  }
+  .loss-badge .label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 2px; }
+  .loss-badge .value { font-size: 20px; font-weight: 500; color: var(--accent); font-variant-numeric: tabular-nums; }
+
+  /* step counter */
+  .step-badge {
+    position: absolute; top: 20px; left: 160px;
+    background: rgba(10,11,14,0.85);
+    border: 0.5px solid var(--border2);
+    border-radius: 6px;
+    padding: 10px 14px;
+    backdrop-filter: blur(6px);
+  }
+
+  /* hint */
+  .hint {
+    position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
+    font-size: 10px; color: var(--muted); letter-spacing: 0.06em;
+    white-space: nowrap; pointer-events: none;
+  }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    padding: 24px 20px;
+    display: flex; flex-direction: column; gap: 24px;
+    overflow-y: auto;
+    background: var(--surface);
+  }
+
+  .section-title {
+    font-size: 9px; text-transform: uppercase; letter-spacing: 0.14em;
+    color: var(--muted); margin-bottom: 12px;
+  }
+
+  /* Surface selector */
+  .surface-tabs { display: flex; flex-direction: column; gap: 6px; }
+  .surface-tab {
+    padding: 9px 12px;
+    border-radius: 6px;
+    border: 0.5px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 12px;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.15s;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .surface-tab .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); transition: background 0.15s; flex-shrink: 0; }
+  .surface-tab:hover { border-color: var(--border2); color: var(--text); }
+  .surface-tab.active { border-color: var(--accent); color: var(--text); background: rgba(245,155,56,0.06); }
+  .surface-tab.active .dot { background: var(--accent); }
+
+  .surface-desc { font-size: 10px; color: var(--muted); margin-top: 10px; line-height: 1.6; }
+
+  /* Sliders */
+  .slider-row { display: flex; flex-direction: column; gap: 8px; }
+  .slider-label { display: flex; justify-content: space-between; align-items: center; }
+  .slider-label span { color: var(--muted); font-size: 11px; }
+  .slider-val { color: var(--text); font-size: 12px; font-weight: 500; min-width: 38px; text-align: right; }
+
+  input[type=range] {
+    -webkit-appearance: none;
+    width: 100%; height: 3px;
+    background: var(--border2);
+    border-radius: 2px; outline: none;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px; height: 14px; border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    border: 2px solid var(--bg);
+  }
+  input[type=range]:focus::-webkit-slider-thumb { box-shadow: 0 0 0 3px rgba(245,155,56,0.25); }
+
+  /* Buttons */
+  .btn-row { display: flex; gap: 8px; }
+  .btn {
+    flex: 1; padding: 9px 0;
+    border-radius: 6px; font-family: var(--mono); font-size: 12px;
+    cursor: pointer; border: 0.5px solid var(--border2);
+    background: transparent; color: var(--text);
+    transition: all 0.12s; font-weight: 500;
+  }
+  .btn:hover { background: rgba(255,255,255,0.04); border-color: var(--border2); }
+  .btn:active { transform: scale(0.97); }
+  .btn.primary { background: var(--accent); color: #0a0b0e; border-color: var(--accent); }
+  .btn.primary:hover { background: #f8b060; border-color: #f8b060; }
+
+  /* Info cards */
+  .info-card {
+    background: rgba(255,255,255,0.03);
+    border: 0.5px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+  }
+  .info-card h4 { font-size: 11px; font-weight: 500; color: var(--text); margin-bottom: 6px; }
+  .info-card p { font-size: 11px; color: var(--muted); line-height: 1.65; }
+  .info-card code { color: var(--accent2); font-family: var(--mono); font-size: 10.5px; }
+
+  /* Stats row */
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .stat { background: rgba(255,255,255,0.03); border: 0.5px solid var(--border); border-radius: 6px; padding: 10px; }
+  .stat .s-label { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; }
+  .stat .s-val { font-size: 15px; font-weight: 500; color: var(--text); margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .stat .s-val.good { color: var(--green); }
+  .stat .s-val.warn { color: var(--accent); }
+  .stat .s-val.bad  { color: var(--red); }
+
+  /* Footer */
+  footer {
+    padding: 12px 40px;
+    border-top: 0.5px solid var(--border);
+    font-size: 10px; color: var(--muted);
+    display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;
+  }
+  .formula { font-family: var(--mono); color: var(--accent2); }
+
+  /* Converged banner */
+  .converged-banner {
+    display: none;
+    position: absolute; bottom: 50px; left: 50%; transform: translateX(-50%);
+    background: rgba(99,153,42,0.15); border: 0.5px solid rgba(99,153,42,0.4);
+    color: #8ecf4a; font-size: 11px; padding: 7px 18px; border-radius: 20px;
+    letter-spacing: 0.06em; text-transform: uppercase; backdrop-filter: blur(4px);
+    pointer-events: none;
+  }
+
+  @media (max-width: 720px) {
+    .main { grid-template-columns: 1fr; grid-template-rows: 1fr auto; }
+    #canvas-wrap { border-right: none; border-bottom: 0.5px solid var(--border); }
+    header { padding: 18px 20px 14px; }
+    footer { padding: 10px 20px; }
+    .sidebar { padding: 16px; gap: 18px; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header>
+    <div class="header-left">
+      <h1>Gradient <em>Descent</em></h1>
+      <div class="header-sub">3D Interactive Visualiser · Loss Surface Explorer</div>
+    </div>
+    <div style="font-size:10px;color:var(--muted);text-align:right">
+      θ<sub>t+1</sub> = θ<sub>t</sub> − η ∇L(θ<sub>t</sub>)
+    </div>
+  </header>
+
+  <div class="main">
+    <!-- Canvas -->
+    <div id="canvas-wrap">
+      <canvas id="canvas3d"></canvas>
+      <div class="canvas-overlay">
+        <div class="loss-badge">
+          <div class="label">Loss</div>
+          <div class="value" id="loss-val">—</div>
+        </div>
+        <div class="step-badge">
+          <div class="label">Steps</div>
+          <div class="value" id="step-val" style="font-size:20px;font-weight:500;color:var(--accent2);font-variant-numeric:tabular-nums">0</div>
+        </div>
+        <div class="converged-banner" id="converged">✓ Converged</div>
+        <div class="hint">drag to rotate · scroll to zoom</div>
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+
+      <div>
+        <div class="section-title">Loss Surface</div>
+        <div class="surface-tabs">
+          <button class="surface-tab active" data-key="bowl">
+            <span class="dot"></span>Bowl (convex)
+          </button>
+          <button class="surface-tab" data-key="saddle">
+            <span class="dot"></span>Saddle point
+          </button>
+          <button class="surface-tab" data-key="bumpy">
+            <span class="dot"></span>Multiple minima
+          </button>
+        </div>
+        <div class="surface-desc" id="surface-desc">
+          A perfectly convex bowl — one global minimum. Gradient descent always finds it regardless of starting point.
+        </div>
+      </div>
+
+      <div>
+        <div class="section-title">Controls</div>
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div class="slider-row">
+            <div class="slider-label">
+              <span>Learning rate <code>η</code></span>
+              <span class="slider-val" id="lr-out">0.08</span>
+            </div>
+            <input type="range" id="lr-slider" min="1" max="20" value="8">
+          </div>
+          <div class="slider-row">
+            <div class="slider-label">
+              <span>Step interval (ms)</span>
+              <span class="slider-val" id="speed-out">120</span>
+            </div>
+            <input type="range" id="speed-slider" min="40" max="600" value="120" step="20">
+          </div>
+        </div>
+        <div class="btn-row" style="margin-top:14px">
+          <button class="btn primary" id="run-btn">▶ Run</button>
+          <button class="btn" id="step-btn">Step</button>
+          <button class="btn" id="reset-btn">↺</button>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-title">Live Stats</div>
+        <div class="stats">
+          <div class="stat"><div class="s-label">Loss</div><div class="s-val" id="stat-loss">—</div></div>
+          <div class="stat"><div class="s-label">Steps</div><div class="s-val" id="stat-steps">0</div></div>
+          <div class="stat"><div class="s-label">|Gradient|</div><div class="s-val" id="stat-grad">—</div></div>
+          <div class="stat"><div class="s-label">Status</div><div class="s-val" id="stat-status">Idle</div></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-title">How it works</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div class="info-card">
+            <h4>The update rule</h4>
+            <p>At each step, compute the gradient <code>∇L</code> at the current position and move <em>opposite</em> to it by a step size <code>η</code> (learning rate).</p>
+          </div>
+          <div class="info-card">
+            <h4>Learning rate matters</h4>
+            <p>Too small → slow convergence. Too large → the ball overshoots the valley and may diverge. Try cranking it up!</p>
+          </div>
+          <div class="info-card">
+            <h4>Non-convex surfaces</h4>
+            <p>In <em>Multiple minima</em> mode, where you start determines where you land. Neural networks live on surfaces like this.</p>
+          </div>
+        </div>
+      </div>
+
+    </aside>
+  </div>
+
+  <footer>
+    <span>The <span class="formula">orange ball</span> = current parameters · <span class="formula">trail</span> = optimisation path · <span class="formula">height</span> = loss</span>
+    <span>Drag to orbit · Scroll to zoom</span>
+  </footer>
+</div>
+
+<script>
+const canvas = document.getElementById('canvas3d');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.setClearColor(0x0a0b0e, 1);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(45, 2, 0.1, 100);
+
+const ambient = new THREE.AmbientLight(0xffffff, 0.5);
+scene.add(ambient);
+const dirL = new THREE.DirectionalLight(0xffffff, 0.8);
+dirL.position.set(4, 6, 3);
+scene.add(dirL);
+const dirL2 = new THREE.DirectionalLight(0x3B8BD4, 0.3);
+dirL2.position.set(-4, 2, -3);
+scene.add(dirL2);
+
+// Surfaces
+const surfaces = {
+  bowl:   (x,z) => 0.6*(x*x + z*z),
+  saddle: (x,z) => 0.5*(x*x - z*z),
+  bumpy:  (x,z) => 0.4*(x*x + z*z) - 0.6*Math.cos(2.5*x)*Math.cos(2.5*z),
+};
+const gradients = {
+  bowl:   (x,z) => ({ gx:1.2*x, gz:1.2*z }),
+  saddle: (x,z) => ({ gx:x, gz:-z }),
+  bumpy:  (x,z) => ({
+    gx: 0.8*x + 1.5*Math.sin(2.5*x)*Math.cos(2.5*z),
+    gz: 0.8*z + 1.5*Math.cos(2.5*x)*Math.sin(2.5*z),
+  }),
+};
+const descs = {
+  bowl:   'A perfectly convex bowl — one global minimum. Gradient descent always finds it regardless of starting point.',
+  saddle: 'A saddle point: downhill in one direction, uphill in the other. The ball may slide to a flat region and stall.',
+  bumpy:  'Multiple local minima — the hard real-world case. Where you start determines where you land. Neural networks live here.',
+};
+
+let surfaceKey = 'bowl';
+let surfaceMesh, gridMesh;
+
+function buildSurface(key) {
+  const fn = surfaces[key];
+  const N = 60;
+  const geo = new THREE.PlaneGeometry(4, 4, N, N);
+  geo.rotateX(-Math.PI / 2);
+  const pos = geo.attributes.position;
+  const minH = -0.6, maxH = 2.6;
+  const colors = [];
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i), z = pos.getZ(i);
+    const y = fn(x, z);
+    pos.setY(i, y);
+    const t = Math.max(0, Math.min(1, (y - minH) / (maxH - minH)));
+    // Blue-teal (low) → amber-coral (high)
+    colors.push(0.18 + 0.72*t, 0.52 - 0.22*t, 0.82 - 0.58*t);
+  }
+  pos.needsUpdate = true;
+  geo.computeVertexNormals();
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  const mat = new THREE.MeshPhongMaterial({
+    vertexColors: true, side: THREE.DoubleSide,
+    shininess: 35, opacity: 0.88, transparent: true,
+  });
+  return new THREE.Mesh(geo, mat);
+}
+
+function buildGrid(key) {
+  const fn = surfaces[key];
+  const mat = new THREE.LineBasicMaterial({ color: 0x333840, opacity: 0.5, transparent: true });
+  const g = new THREE.Group();
+  const steps = 14;
+  for (let i = 0; i <= steps; i++) {
+    const t = (i / steps) * 4 - 2;
+    const pts1 = [], pts2 = [];
+    for (let j = 0; j <= 48; j++) {
+      const s = (j / 48) * 4 - 2;
+      pts1.push(new THREE.Vector3(t, fn(t, s) + 0.004, s));
+      pts2.push(new THREE.Vector3(s, fn(s, t) + 0.004, t));
+    }
+    g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts1), mat));
+    g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts2), mat));
+  }
+  return g;
+}
+
+function setSurface(key) {
+  surfaceKey = key;
+  if (surfaceMesh) scene.remove(surfaceMesh);
+  if (gridMesh) scene.remove(gridMesh);
+  surfaceMesh = buildSurface(key);
+  gridMesh = buildGrid(key);
+  scene.add(surfaceMesh);
+  scene.add(gridMesh);
+  document.getElementById('surface-desc').textContent = descs[key];
+}
+
+setSurface('bowl');
+
+// Ball
+const ballGeo = new THREE.SphereGeometry(0.09, 24, 24);
+const ballMat = new THREE.MeshPhongMaterial({ color: 0xF59B38, shininess: 100, emissive: 0x3a2000 });
+const ball = new THREE.Mesh(ballGeo, ballMat);
+scene.add(ball);
+
+// Ball glow ring
+const ringGeo = new THREE.RingGeometry(0.10, 0.14, 32);
+const ringMat = new THREE.MeshBasicMaterial({ color: 0xF59B38, opacity: 0.25, transparent: true, side: THREE.DoubleSide });
+const ring = new THREE.Mesh(ringGeo, ringMat);
+ring.rotation.x = -Math.PI / 2;
+scene.add(ring);
+
+// Trail
+const MAX_TRAIL = 80;
+const trailPts = [];
+let trailLine = null;
+
+function updateTrail() {
+  if (trailLine) scene.remove(trailLine);
+  if (trailPts.length < 2) return;
+  const geo = new THREE.BufferGeometry().setFromPoints(
+    trailPts.map(p => new THREE.Vector3(p.x, p.y + 0.06, p.z))
+  );
+  trailLine = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0xF59B38, opacity: 0.5, transparent: true }));
+  scene.add(trailLine);
+}
+
+// State
+let px = 1.5, pz = 1.5;
+let lr = 0.08;
+let speed = 120;
+let running = false;
+let stepInterval = null;
+let stepCount = 0;
+let converged = false;
+
+function getY(x, z) { return surfaces[surfaceKey](x, z); }
+function getGrad(x, z) { return gradients[surfaceKey](x, z); }
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+function placeBall() {
+  const y = getY(px, pz);
+  ball.position.set(px, y + 0.09, pz);
+  ring.position.set(px, y + 0.02, pz);
+  const lossStr = y.toFixed(4);
+  document.getElementById('loss-val').textContent = lossStr;
+  document.getElementById('stat-loss').textContent = lossStr;
+
+  const { gx, gz } = getGrad(px, pz);
+  const gradMag = Math.sqrt(gx*gx + gz*gz);
+  document.getElementById('stat-grad').textContent = gradMag.toFixed(4);
+
+  const s = document.getElementById('stat-status');
+  if (converged) { s.textContent = 'Conv.'; s.className = 's-val good'; }
+  else if (running) { s.textContent = 'Running'; s.className = 's-val warn'; }
+  else { s.textContent = 'Paused'; s.className = 's-val'; }
+}
+
+function doStep() {
+  const { gx, gz } = getGrad(px, pz);
+  const mag = Math.sqrt(gx*gx + gz*gz);
+  if (mag < 0.001) { converged = true; stopRun(); document.getElementById('converged').style.display = 'block'; return; }
+  px = clamp(px - lr * gx, -1.9, 1.9);
+  pz = clamp(pz - lr * gz, -1.9, 1.9);
+  stepCount++;
+  document.getElementById('step-val').textContent = stepCount;
+  document.getElementById('stat-steps').textContent = stepCount;
+  trailPts.push(new THREE.Vector3(px, getY(px, pz), pz));
+  if (trailPts.length > MAX_TRAIL) trailPts.shift();
+  placeBall();
+  updateTrail();
+}
+
+function stopRun() {
+  clearInterval(stepInterval);
+  running = false;
+  document.getElementById('run-btn').textContent = '▶ Run';
+  placeBall();
+}
+
+function reset() {
+  stopRun();
+  converged = false;
+  document.getElementById('converged').style.display = 'none';
+  px = (surfaceKey === 'bumpy') ? 1.7 : 1.5;
+  pz = (surfaceKey === 'bumpy') ? 1.7 : 1.5;
+  stepCount = 0;
+  document.getElementById('step-val').textContent = '0';
+  document.getElementById('stat-steps').textContent = '0';
+  trailPts.length = 0;
+  updateTrail();
+  placeBall();
+}
+
+reset();
+
+// Buttons
+document.getElementById('run-btn').addEventListener('click', () => {
+  if (converged) return;
+  running = !running;
+  if (running) {
+    document.getElementById('run-btn').textContent = '⏸ Pause';
+    stepInterval = setInterval(doStep, speed);
+    placeBall();
+  } else {
+    stopRun();
+  }
+});
+document.getElementById('step-btn').addEventListener('click', () => { if (!converged) doStep(); });
+document.getElementById('reset-btn').addEventListener('click', reset);
+
+document.getElementById('lr-slider').addEventListener('input', e => {
+  lr = e.target.value / 100;
+  document.getElementById('lr-out').textContent = lr.toFixed(2);
+  if (running) { clearInterval(stepInterval); stepInterval = setInterval(doStep, speed); }
+});
+document.getElementById('speed-slider').addEventListener('input', e => {
+  speed = +e.target.value;
+  document.getElementById('speed-out').textContent = speed;
+  if (running) { clearInterval(stepInterval); stepInterval = setInterval(doStep, speed); }
+});
+
+// Surface tabs
+document.querySelectorAll('.surface-tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.surface-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    setSurface(btn.dataset.key);
+    reset();
+  });
+});
+
+// Camera orbit
+let theta = Math.PI / 4, phi = Math.PI / 3.5, radius = 5.8;
+function updateCamera() {
+  camera.position.set(
+    radius * Math.sin(phi) * Math.sin(theta),
+    radius * Math.cos(phi) + 0.2,
+    radius * Math.sin(phi) * Math.cos(theta)
+  );
+  camera.lookAt(0, -0.2, 0);
+}
+updateCamera();
+
+let isDragging = false, lastMouse = null;
+canvas.addEventListener('mousedown', e => { isDragging = true; lastMouse = {x: e.clientX, y: e.clientY}; });
+window.addEventListener('mouseup', () => { isDragging = false; });
+window.addEventListener('mousemove', e => {
+  if (!isDragging || !lastMouse) return;
+  theta -= (e.clientX - lastMouse.x) * 0.007;
+  phi = clamp(phi - (e.clientY - lastMouse.y) * 0.005, 0.18, 1.45);
+  lastMouse = {x: e.clientX, y: e.clientY};
+  updateCamera();
+});
+canvas.addEventListener('wheel', e => {
+  radius = clamp(radius + e.deltaY * 0.005, 2.5, 10);
+  updateCamera();
+  e.preventDefault();
+}, { passive: false });
+
+// Touch orbit
+let lastTouch = null;
+canvas.addEventListener('touchstart', e => { lastTouch = {x: e.touches[0].clientX, y: e.touches[0].clientY}; });
+canvas.addEventListener('touchmove', e => {
+  if (!lastTouch) return;
+  theta -= (e.touches[0].clientX - lastTouch.x) * 0.008;
+  phi = clamp(phi - (e.touches[0].clientY - lastTouch.y) * 0.006, 0.18, 1.45);
+  lastTouch = {x: e.touches[0].clientX, y: e.touches[0].clientY};
+  updateCamera();
+  e.preventDefault();
+}, { passive: false });
+
+// Ball pulse animation
+let t0 = performance.now();
+(function loop(t) {
+  requestAnimationFrame(loop);
+  const pulse = 0.22 + 0.05 * Math.sin((t - t0) / 300);
+  ringMat.opacity = pulse;
+  renderer.render(scene, camera);
+})();
+
+// Resize
+function resize() {
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(canvas);
+resize();
+</script>
+</body>
+</html>

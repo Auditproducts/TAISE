@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Diffusion Model Demo</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      text-align: center;
+      padding: 20px;
+    }
+    canvas {
+      border-radius: 12px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.5);
+      margin-top: 20px;
+    }
+    .controls {
+      margin-top: 20px;
+    }
+    button, input {
+      margin: 10px;
+      padding: 10px 15px;
+      border-radius: 8px;
+      border: none;
+      font-size: 14px;
+    }
+    button {
+      background: #3b82f6;
+      color: white;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #2563eb;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Diffusion AI Model Simulation</h1>
+  <p>Forward Process (Noise Addition) ↔ Reverse Process (Denoising)</p>
+
+  <canvas id="canvas" width="300" height="300"></canvas>
+
+  <div class="controls">
+    <button onclick="addNoise()">Add Noise</button>
+    <button onclick="removeNoise()">Remove Noise</button>
+    <button onclick="resetImage()">Reset</button>
+    <br>
+    Noise Level:
+    <input type="range" id="noiseSlider" min="0" max="100" value="0" onchange="setNoise(this.value)">
+  </div>
+
+  <script>
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+
+    let originalImage = new Image();
+    originalImage.crossOrigin = "anonymous";
+    originalImage.src = "https://picsum.photos/300";
+
+    let currentNoise = 0;
+
+    originalImage.onload = () => {
+      ctx.drawImage(originalImage, 0, 0);
+    };
+
+    function setNoise(value) {
+      currentNoise = value;
+      applyNoise();
+    }
+
+    function addNoise() {
+      if (currentNoise < 100) {
+        currentNoise += 5;
+        document.getElementById("noiseSlider").value = currentNoise;
+        applyNoise();
+      }
+    }
+
+    function removeNoise() {
+      if (currentNoise > 0) {
+        currentNoise -= 5;
+        document.getElementById("noiseSlider").value = currentNoise;
+        applyNoise();
+      }
+    }
+
+    function resetImage() {
+      currentNoise = 0;
+      document.getElementById("noiseSlider").value = 0;
+      ctx.drawImage(originalImage, 0, 0);
+    }
+
+    function applyNoise() {
+      ctx.drawImage(originalImage, 0, 0);
+      let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      let data = imageData.data;
+
+      for (let i = 0; i < data.length; i += 4) {
+        let noise = (Math.random() - 0.5) * currentNoise * 2;
+        data[i] += noise;     // R
+        data[i + 1] += noise; // G
+        data[i + 2] += noise; // B
+      }
+
+      ctx.putImageData(imageData, 0, 0);
+    }
+  </script>
+
+</body>
+</html>
