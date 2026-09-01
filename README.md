@@ -37,7 +37,7 @@ The official CSA material contains the concepts, terminology, frameworks, exampl
 [Mock tests](./Simulations/)
 
 **Example Infographics**
-[Google Model Card](./Infographics/Google Model Card.PNG)
+[Google Model Card](./Infographics/"Google%Model%Card.PNG")
 
 
 
