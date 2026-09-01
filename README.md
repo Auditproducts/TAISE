@@ -45,6 +45,7 @@ The official CSA material contains the concepts, terminology, frameworks, exampl
 
 **Example Simulations**
 [Gradient Descent](./Simulations/gradient_descent.html)
+<img src="https://github.com/Auditproducts/TAISE/blob/main/Simulations/GD_Simulation.PNG?raw=true" width="90%">
 
 
 **Recommended approach:**
