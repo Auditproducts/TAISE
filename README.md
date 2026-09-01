@@ -34,9 +34,11 @@ The official CSA material contains the concepts, terminology, frameworks, exampl
 
 [Infographics](./Infographics/)
 [Simulations](./Simulations/)
-["Mock tests"](./Simulations/)
+[Mock tests](./Simulations/)
 
-Example Infographics
+**Example Infographics**
+[AI Risk Interactive Infographic](./Infographics/Nuclear Plant Case Study Safety vs Security.PNG)
+[Infographics](./Infographics/)
 Example Simulation
 
 
