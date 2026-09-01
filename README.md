@@ -34,7 +34,7 @@ The official CSA material contains the concepts, terminology, frameworks, exampl
 
 [Infographics](./Infographics/)
 [Simulations](./Simulations/)
-["Mock tests"](./Infographics/)
+["Mock tests"](./Simulations/)
 
 Example Infographics
 Example Simulation
