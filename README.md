@@ -39,6 +39,9 @@ The official CSA material contains the concepts, terminology, frameworks, exampl
 **Example Infographics**
 [SHapley Additive exPlanations](./Infographics/SHAP.PNG)
 
+**Example Simulations**
+[SHapley Additive exPlanations](./Infographics/SHAP.PNG)
+
 
 
 Example Simulation
