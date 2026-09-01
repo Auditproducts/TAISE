@@ -34,18 +34,13 @@ The official CSA material contains the concepts, terminology, frameworks, exampl
 
 [Infographics](./Infographics/)
 [Simulations](./Simulations/)
-[Mock tests](./Simulations/)
+[Mock tests](./Mock_Tests/)
 
 **Example Infographics**
 [SHapley Additive exPlanations](./Infographics/SHAP.PNG)
 
 **Example Simulations**
 [Gradient Descent](./Simulations/gradient_descent.html)
-
-
-
-Example Simulation
-
 
 
 **Recommended approach:**
