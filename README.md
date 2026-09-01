@@ -38,6 +38,7 @@ The official CSA material contains the concepts, terminology, frameworks, exampl
 
 **Example Infographics**
 [SHapley Additive exPlanations](./Infographics/SHAP.PNG)
+<img src="https://github.com/Auditproducts/TAISE/blob/main/Infographics/SHAP.PNG?raw=true" width="100%">
 
 **Example Simulations**
 [Gradient Descent](./Simulations/gradient_descent.html)
