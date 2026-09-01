@@ -37,7 +37,7 @@ The official CSA material contains the concepts, terminology, frameworks, exampl
 [Mock tests](./Simulations/)
 
 **Example Infographics**
-[Infographics](./Infographics/Nuclear Plant Case Study Safety vs Security.PNG)
+[Infographics](./Infographics/SHAP.PNG)
 
 
 
