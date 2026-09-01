@@ -2,9 +2,6 @@
 
 ## Study Materials, Supplementary Notes, Mind Maps, Interactive simulations & Question Bank
 
-### Connect with me
-
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-blue?logo=linkedin)](https://www.linkedin.com/in/rabinarayan-behera-69837520/)
 
 Welcome to this repository for **TAISE — Trusted AI Safety Expert** exam preparation.
 
@@ -163,4 +160,14 @@ Where official CSA resources are referenced, users should consult the original s
 
 
 # Good Luck with Your TAISE Preparation! 🚀
+### About me
+
+
+I am a Technology Risk and Controls Assurance leader with experience spanning **AI, Cybersecurity, Data, Cloud, and emerging technologies**, with a focus on helping organizations adopt technology responsibly and securely. My work sits at the intersection of **Business, Technology, Risk, Security, and Regulatory expectations**, translating complex risks into practical solutions and informed decisions. I lead second-line oversight and controls assurance, while transforming traditional assurance practices through **automation, data analytics, cloud-native solutions, and AI/agent-based capabilities** to enable continuous testing and greater risk visibility. I am particularly interested in the evolving landscape of **AI Risk, AI Security, Post-Quantum Cryptography, digital resilience, and technology-enabled risk management**. Through this repository, I aim to share practical **infographics, learning resources, simulations, AI agents, and research/whitepapers** that can help professionals understand and navigate emerging technology risks.
+
+### Connect with me
+Rabinarayan Behera
+
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-blue?logo=linkedin)](https://www.linkedin.com/in/rabinarayan-behera-69837520/)
+
 
