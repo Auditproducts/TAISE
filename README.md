@@ -1,4 +1,4 @@
-# TAISE — Trusted AI Safety Expert
+# TAISE — Trusted AI Safety Expert Notes
 
 ## Study Materials, Supplementary Notes, Mind Maps, Interactive simulations & Question Bank
 
