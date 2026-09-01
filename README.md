@@ -26,7 +26,7 @@ Do not rely solely on the notes or question bank provided in this repository.
 
 The official CSA material contains the concepts, terminology, frameworks, examples, and learning objectives that form the foundation of the TAISE certification.
 
-### Second - Review self-prepared Notes
+### Second - Review Your Self-Prepared Notes (Your Own Learning Style Matters)
 
 ### Third - Use Infographics, Simulations and Mock tests from this Repository
 
