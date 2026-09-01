@@ -1,6 +1,10 @@
 # TAISE — Trusted AI Safety Expert
 
-## Study Materials, Supplementary Notes, Mind Maps & Question Bank
+## Study Materials, Supplementary Notes, Mind Maps, Interactive simulations & Question Bank
+
+### Connect with me
+
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-blue?logo=linkedin)](https://www.linkedin.com/in/rabinarayan-behera-69837520/)
 
 Welcome to this repository for **TAISE — Trusted AI Safety Expert** exam preparation.
 
