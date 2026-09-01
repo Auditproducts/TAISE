@@ -40,7 +40,7 @@ The official CSA material contains the concepts, terminology, frameworks, exampl
 [SHapley Additive exPlanations](./Infographics/SHAP.PNG)
 
 **Example Simulations**
-[SHapley Additive exPlanations](./Infographics/SHAP.PNG)
+[Gradient Descent](./Simulations/gradient_descent.html)
 
 
 
